@@ -1,0 +1,499 @@
+```{r}
+
+rm(list = ls())
+
+```
+
+```{r}
+
+library(dplyr)
+library(ggplot2)
+library(readr)
+
+```
+
+```{r}
+
+data <- read_csv(file = "../data/2023_Fall_Speaker_Survey.csv")
+
+head(data)
+
+```
+
+```{r}
+
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(tm)
+library(wordcloud)
+
+# Data Cleaning
+data$`Overall, how do you feel your lesson went?` <- as.numeric(data$`Overall, how do you feel your lesson went?`)
+data$`Have you been a speaker for Wonderkids before?` <- as.factor(data$`Have you been a speaker for Wonderkids before?`)
+
+# Quantitative Analysis
+# Summary statistics for lesson ratings
+summary(data$`Overall, how do you feel your lesson went?`)
+
+# Bar plot for lesson ratings
+ggplot(data, aes(x = `Overall, how do you feel your lesson went?`)) +
+  geom_bar() +
+  theme_minimal() +
+  labs(title = "Distribution of Lesson Ratings", x = "Rating", y = "Count")
+
+# Pie chart for first-time vs. repeat speakers
+speaker_summary <- data %>%
+  count(`Have you been a speaker for Wonderkids before?`)
+
+ggplot(speaker_summary, aes(x = "", y = n, fill = `Have you been a speaker for Wonderkids before?`)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y") +
+  theme_minimal() +
+  labs(title = "Proportion of First-Time vs. Repeat Speakers")
+
+# Qualitative Analysis
+# Combining text data
+text_data <- paste(data$`What information did you share with the students to inspire their interest in your field?`,
+                   data$`What 'hands-on' activities (projects, experiments, etc.) did you do to engage the students in your field? Please describe.`,
+                   data$`What can we do to make future guest speaker presentations more successful. Anything *you* might do or that *we can do* to make our guest speaker engagements inspiring and positive for both you and our budding young scientists in our Zoom rooms.`,
+                   sep = " ")
+
+# Create a corpus
+corpus <- Corpus(VectorSource(text_data))
+corpus <- tm_map(corpus, content_transformer(tolower))
+corpus <- tm_map(corpus, removePunctuation)
+corpus <- tm_map(corpus, removeNumbers)
+corpus <- tm_map(corpus, removeWords, stopwords("english"))
+
+# Word Cloud
+wordcloud(corpus, max.words = 100, random.order = FALSE)
+
+# Most frequent terms
+tdm <- TermDocumentMatrix(corpus)
+m <- as.matrix(tdm)
+word_freq <- sort(rowSums(m), decreasing = TRUE)
+word_freq_df <- data.frame(word = names(word_freq), freq = word_freq)
+
+# Bar plot for most frequent terms
+ggplot(word_freq_df[1:10, ], aes(x = reorder(word, freq), y = freq)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "Most Frequent Terms in Speaker Feedback", x = "Terms", y = "Frequency")
+
+# Save plots
+ggsave("lesson_ratings_distribution.png")
+ggsave("first_time_vs_repeat_speakers.png")
+ggsave("word_cloud.png")
+
+
+```
+```{r}
+
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(tm)
+library(ggwordcloud)
+
+
+# Data Cleaning
+data$`Overall, how do you feel your lesson went?` <- as.numeric(data$`Overall, how do you feel your lesson went?`)
+data$`Have you been a speaker for Wonderkids before?` <- as.factor(data$`Have you been a speaker for Wonderkids before?`)
+
+# Quantitative Analysis
+# Summary statistics for lesson ratings
+summary(data$`Overall, how do you feel your lesson went?`)
+
+# Bar plot for lesson ratings
+ggplot(data, aes(x = `Overall, how do you feel your lesson went?`)) +
+  geom_bar() +
+  theme_minimal() +
+  labs(title = "Distribution of Lesson Ratings", x = "Rating", y = "Count")
+
+# Pie chart for first-time vs. repeat speakers
+speaker_summary <- data %>%
+  count(`Have you been a speaker for Wonderkids before?`)
+
+ggplot(speaker_summary, aes(x = "", y = n, fill = `Have you been a speaker for Wonderkids before?`)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y") +
+  theme_minimal() +
+  labs(title = "Proportion of First-Time vs. Repeat Speakers")
+
+# Qualitative Analysis
+# Combining text data
+text_data <- paste(data$`What information did you share with the students to inspire their interest in your field?`,
+                   data$`What 'hands-on' activities (projects, experiments, etc.) did you do to engage the students in your field? Please describe.`,
+                   data$`What can we do to make future guest speaker presentations more successful. Anything *you* might do or that *we can do* to make our guest speaker engagements inspiring and positive for both you and our budding young scientists in our Zoom rooms.`,
+                   sep = " ")
+
+# Create a corpus
+corpus <- Corpus(VectorSource(text_data))
+corpus <- tm_map(corpus, content_transformer(tolower))
+corpus <- tm_map(corpus, removePunctuation)
+corpus <- tm_map(corpus, removeNumbers)
+corpus <- tm_map(corpus, removeWords, stopwords("english"))
+
+# Term Document Matrix
+tdm <- TermDocumentMatrix(corpus)
+m <- as.matrix(tdm)
+word_freq <- sort(rowSums(m), decreasing = TRUE)
+word_freq_df <- data.frame(word = names(word_freq), freq = word_freq)
+
+# Word Cloud using ggwordcloud
+ggplot(word_freq_df, aes(label = word, size = freq)) +
+  geom_text_wordcloud() +
+  theme_minimal() +
+  labs(title = "Word Cloud of Speaker Feedback")
+
+# Most frequent terms bar plot
+ggplot(word_freq_df[1:10, ], aes(x = reorder(word, freq), y = freq)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "Most Frequent Terms in Speaker Feedback", x = "Terms", y = "Frequency")
+
+# Save plots
+ggsave("lesson_ratings_distribution.png")
+ggsave("first_time_vs_repeat_speakers.png")
+ggsave("word_cloud.png")
+
+
+```
+
+```{r}
+
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(tm)
+library(ggwordcloud)
+
+# Load the data
+
+# Data Cleaning
+data$`Overall, how do you feel your lesson went?` <- as.numeric(data$`Overall, how do you feel your lesson went?`)
+data$`Have you been a speaker for Wonderkids before?` <- as.factor(data$`Have you been a speaker for Wonderkids before?`)
+
+# Quantitative Analysis
+# Summary statistics for lesson ratings
+summary(data$`Overall, how do you feel your lesson went?`)
+
+# Bar plot for lesson ratings
+ggplot(data, aes(x = `Overall, how do you feel your lesson went?`)) +
+  geom_bar() +
+  theme_minimal() +
+  labs(title = "Distribution of Lesson Ratings", x = "Rating", y = "Count")
+
+# Pie chart for first-time vs. repeat speakers
+speaker_summary <- data %>%
+  count(`Have you been a speaker for Wonderkids before?`)
+
+ggplot(speaker_summary, aes(x = "", y = n, fill = `Have you been a speaker for Wonderkids before?`)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y") +
+  theme_minimal() +
+  labs(title = "Proportion of First-Time vs. Repeat Speakers")
+
+# Qualitative Analysis
+# Combining text data
+text_data <- paste(data$`What information did you share with the students to inspire their interest in your field?`,
+                   data$`What 'hands-on' activities (projects, experiments, etc.) did you do to engage the students in your field? Please describe.`,
+                   data$`What can we do to make future guest speaker presentations more successful. Anything *you* might do or that *we can do* to make our guest speaker engagements inspiring and positive for both you and our budding young scientists in our Zoom rooms.`,
+                   sep = " ")
+
+# Create a custom stopword list
+custom_stopwords <- c(stopwords("english"), "also", "just", "like", "can", "one", "get", "even", "now", "still", "will", "say", "make", "think", "really", "see", "also", "us", "go", "come")
+
+# Create a corpus
+corpus <- Corpus(VectorSource(text_data))
+corpus <- tm_map(corpus, content_transformer(tolower))
+corpus <- tm_map(corpus, removePunctuation)
+corpus <- tm_map(corpus, removeNumbers)
+corpus <- tm_map(corpus, removeWords, custom_stopwords)
+
+# Term Document Matrix
+tdm <- TermDocumentMatrix(corpus)
+m <- as.matrix(tdm)
+word_freq <- sort(rowSums(m), decreasing = TRUE)
+word_freq_df <- data.frame(word = names(word_freq), freq = word_freq)
+
+# Word Cloud using ggwordcloud
+ggplot(word_freq_df, aes(label = word, size = freq)) +
+  geom_text_wordcloud() +
+  theme_minimal() +
+  labs(title = "Word Cloud of Speaker Feedback")
+
+# Most frequent terms bar plot
+ggplot(word_freq_df[1:10, ], aes(x = reorder(word, freq), y = freq)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "Most Frequent Terms in Speaker Feedback", x = "Terms", y = "Frequency")
+
+# Save plots
+ggsave("lesson_ratings_distribution.png")
+ggsave("first_time_vs_repeat_speakers.png")
+ggsave("word_cloud.png")
+
+
+```
+
+
+```{r}
+
+
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(tm)
+library(ggwordcloud)
+
+
+# Data Cleaning
+data$`Overall, how do you feel your lesson went?` <- as.numeric(data$`Overall, how do you feel your lesson went?`)
+data$`Have you been a speaker for Wonderkids before?` <- as.factor(data$`Have you been a speaker for Wonderkids before?`)
+
+# Quantitative Analysis
+# Summary statistics for lesson ratings
+summary(data$`Overall, how do you feel your lesson went?`)
+
+# Box plot with jitter for lesson ratings
+ggplot(data, aes(x = `Have you been a speaker for Wonderkids before?`, y = `Overall, how do you feel your lesson went?`)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.2, size = 2, alpha = 0.6) +
+  theme_minimal() +
+  labs(title = "Lesson Ratings by Speaker Experience", x = "Speaker Experience", y = "Lesson Rating")
+
+# Pie chart for first-time vs. repeat speakers
+speaker_summary <- data %>%
+  count(`Have you been a speaker for Wonderkids before?`)
+
+ggplot(speaker_summary, aes(x = "", y = n, fill = `Have you been a speaker for Wonderkids before?`)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y") +
+  theme_minimal() +
+  labs(title = "Proportion of First-Time vs. Repeat Speakers")
+
+# Qualitative Analysis
+# Combining text data
+text_data <- paste(data$`What information did you share with the students to inspire their interest in your field?`,
+                   data$`What 'hands-on' activities (projects, experiments, etc.) did you do to engage the students in your field? Please describe.`,
+                   data$`What can we do to make future guest speaker presentations more successful. Anything *you* might do or that *we can do* to make our guest speaker engagements inspiring and positive for both you and our budding young scientists in our Zoom rooms.`,
+                   sep = " ")
+
+# Create a custom stopword list
+custom_stopwords <- c(stopwords("english"), "also", "just", "like", "can", "one", "get", "even", "now", "still", "will", "say", "make", "think", "really", "see", "us", "go", "come")
+
+# Create a corpus
+corpus <- Corpus(VectorSource(text_data))
+corpus <- tm_map(corpus, content_transformer(tolower))
+corpus <- tm_map(corpus, removePunctuation)
+corpus <- tm_map(corpus, removeNumbers)
+corpus <- tm_map(corpus, removeWords, custom_stopwords)
+
+# Term Document Matrix
+tdm <- TermDocumentMatrix(corpus)
+m <- as.matrix(tdm)
+word_freq <- sort(rowSums(m), decreasing = TRUE)
+word_freq_df <- data.frame(word = names(word_freq), freq = word_freq)
+
+# Word Cloud using ggwordcloud
+ggplot(word_freq_df, aes(label = word, size = freq)) +
+  geom_text_wordcloud() +
+  theme_minimal() +
+  labs(title = "Word Cloud of Speaker Feedback")
+
+# Most frequent terms bar plot
+ggplot(word_freq_df[1:10, ], aes(x = reorder(word, freq), y = freq)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "Most Frequent Terms in Speaker Feedback", x = "Terms", y = "Frequency")
+
+# Save plots
+ggsave("lesson_ratings_boxplot.png")
+ggsave("first_time_vs_repeat_speakers.png")
+ggsave("word_cloud.png")
+ggsave("frequent_terms_barplot.png")
+
+
+```
+```{r}
+
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(tm)
+library(ggwordcloud)
+
+
+# Data Cleaning
+data$`Overall, how do you feel your lesson went?` <- as.numeric(data$`Overall, how do you feel your lesson went?`) / 2
+data$`Did the students seem to have background knowledge of some of the topics addressed in your lesson?` <- as.numeric(data$`Did the students seem to have background knowledge of some of the topics addressed in your lesson?`)
+data$`Were the students engaged in the lesson and did they seem to enjoy it?` <- as.numeric(data$`Were the students engaged in the lesson and did they seem to enjoy it?`)
+data$`Were the Wonderkids staff helpful in preparing you and with online classroom management?` <- as.numeric(data$`Were the Wonderkids staff helpful in preparing you and with online classroom management?`)
+data$`Have you been a speaker for Wonderkids before?` <- as.factor(data$`Have you been a speaker for Wonderkids before?`)
+
+# Reshape the data for plotting
+data_long <- data %>%
+  pivot_longer(cols = c(`Overall, how do you feel your lesson went?`,
+                        `Did the students seem to have background knowledge of some of the topics addressed in your lesson?`,
+                        `Were the students engaged in the lesson and did they seem to enjoy it?`,
+                        `Were the Wonderkids staff helpful in preparing you and with online classroom management?`),
+               names_to = "Question", values_to = "Rating")
+
+# Box plot with jitter for all specified questions
+ggplot(data_long, aes(x = Question, y = Rating, color = `Have you been a speaker for Wonderkids before?`)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.2, size = 2, alpha = 0.6) +
+  theme_minimal() +
+  labs(title = "Lesson Ratings by Question and Speaker Experience", x = "Question", y = "Rating") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Pie chart for first-time vs. repeat speakers
+speaker_summary <- data %>%
+  count(`Have you been a speaker for Wonderkids before?`)
+
+ggplot(speaker_summary, aes(x = "", y = n, fill = `Have you been a speaker for Wonderkids before?`)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y") +
+  theme_minimal() +
+  labs(title = "Proportion of First-Time vs. Repeat Speakers")
+
+# Qualitative Analysis
+# Combining text data
+text_data <- paste(data$`What information did you share with the students to inspire their interest in your field?`,
+                   data$`What 'hands-on' activities (projects, experiments, etc.) did you do to engage the students in your field? Please describe.`,
+                   data$`What can we do to make future guest speaker presentations more successful. Anything *you* might do or that *we can do* to make our guest speaker engagements inspiring and positive for both you and our budding young scientists in our Zoom rooms.`,
+                   sep = " ")
+
+# Create a custom stopword list
+custom_stopwords <- c(stopwords("english"), "also", "just", "like", "can", "one", "get", "even", "now", "still", "will", "say", "make", "think", "really", "see", "us", "go", "come")
+
+# Create a corpus
+corpus <- Corpus(VectorSource(text_data))
+corpus <- tm_map(corpus, content_transformer(tolower))
+corpus <- tm_map(corpus, removePunctuation)
+corpus <- tm_map(corpus, removeNumbers)
+corpus <- tm_map(corpus, removeWords, custom_stopwords)
+
+# Term Document Matrix
+tdm <- TermDocumentMatrix(corpus)
+m <- as.matrix(tdm)
+word_freq <- sort(rowSums(m), decreasing = TRUE)
+word_freq_df <- data.frame(word = names(word_freq), freq = word_freq)
+
+# Word Cloud using ggwordcloud
+ggplot(word_freq_df, aes(label = word, size = freq)) +
+  geom_text_wordcloud() +
+  theme_minimal() +
+  labs(title = "Word Cloud of Speaker Feedback")
+
+# Most frequent terms bar plot
+ggplot(word_freq_df[1:10, ], aes(x = reorder(word, freq), y = freq)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "Most Frequent Terms in Speaker Feedback", x = "Terms", y = "Frequency")
+
+# Save plots
+ggsave("lesson_ratings_boxplot.png")
+ggsave("first_time_vs_repeat_speakers.png")
+ggsave("word_cloud.png")
+ggsave("frequent_terms_barplot.png")
+
+
+```
+```{r}
+
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(tm)
+library(ggwordcloud)
+
+# Load the data
+
+# Data Cleaning
+data$`Overall, how do you feel your lesson went?` <- as.numeric(data$`Overall, how do you feel your lesson went?`) / 2
+data$`Did the students seem to have background knowledge of some of the topics addressed in your lesson?` <- as.numeric(data$`Did the students seem to have background knowledge of some of the topics addressed in your lesson?`)
+data$`Were the students engaged in the lesson and did they seem to enjoy it?` <- as.numeric(data$`Were the students engaged in the lesson and did they seem to enjoy it?`)
+data$`Were the Wonderkids staff helpful in preparing you and with online classroom management?` <- as.numeric(data$`Were the Wonderkids staff helpful in preparing you and with online classroom management?`)
+data$`Have you been a speaker for Wonderkids before?` <- as.factor(data$`Have you been a speaker for Wonderkids before?`)
+
+# Reshape the data for plotting
+data_long <- data %>%
+  pivot_longer(cols = c(`Overall, how do you feel your lesson went?`,
+                        `Did the students seem to have background knowledge of some of the topics addressed in your lesson?`,
+                        `Were the students engaged in the lesson and did they seem to enjoy it?`,
+                        `Were the Wonderkids staff helpful in preparing you and with online classroom management?`),
+               names_to = "Question", values_to = "Rating")
+
+# Box plot with jitter for all specified questions
+ggplot(data_long, aes(x = Question, y = Rating)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(alpha = 0.1, width = 0.1) +
+  theme_minimal() +
+  labs(title = "Lesson Ratings by Question", x = "Question", y = "Rating") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Pie chart for first-time vs. repeat speakers
+speaker_summary <- data %>%
+  count(`Have you been a speaker for Wonderkids before?`)
+
+ggplot(speaker_summary, aes(x = "", y = n, fill = `Have you been a speaker for Wonderkids before?`)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y") +
+  theme_minimal() +
+  labs(title = "Proportion of First-Time vs. Repeat Speakers")
+
+# Qualitative Analysis
+# Combining text data
+text_data <- paste(data$`What information did you share with the students to inspire their interest in your field?`,
+                   data$`What 'hands-on' activities (projects, experiments, etc.) did you do to engage the students in your field? Please describe.`,
+                   data$`What can we do to make future guest speaker presentations more successful. Anything *you* might do or that *we can do* to make our guest speaker engagements inspiring and positive for both you and our budding young scientists in our Zoom rooms.`,
+                   sep = " ")
+
+# Create a custom stopword list
+custom_stopwords <- c(stopwords("english"), "also", "just", "like", "can", "one", "get", "even", "now", "still", "will", "say", "make", "think", "really", "see", "us", "go", "come")
+
+# Create a corpus
+corpus <- Corpus(VectorSource(text_data))
+corpus <- tm_map(corpus, content_transformer(tolower))
+corpus <- tm_map(corpus, removePunctuation)
+corpus <- tm_map(corpus, removeNumbers)
+corpus <- tm_map(corpus, removeWords, custom_stopwords)
+
+# Term Document Matrix
+tdm <- TermDocumentMatrix(corpus)
+m <- as.matrix(tdm)
+word_freq <- sort(rowSums(m), decreasing = TRUE)
+word_freq_df <- data.frame(word = names(word_freq), freq = word_freq)
+
+# Word Cloud using ggwordcloud
+ggplot(word_freq_df, aes(label = word, size = freq)) +
+  geom_text_wordcloud() +
+  theme_minimal() +
+  labs(title = "Word Cloud of Speaker Feedback")
+
+# Most frequent terms bar plot
+ggplot(word_freq_df[1:10, ], aes(x = reorder(word, freq), y = freq)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "Most Frequent Terms in Speaker Feedback", x = "Terms", y = "Frequency")
+
+# Save plots
+
+
+```
+

@@ -1,0 +1,49 @@
+Semester,Test Type,STEM Topic,Class,Total Students,# correct,%
+Fall 2023,Pre-Test,Ecology,K-2,6,5,83.33333333
+Fall 2023,Pre-Test,Ecology,3-5,12,9,75
+Fall 2023,Pre-Test,Geospatial Sciences,K-2,7,5,71.42857143
+Fall 2023,Pre-Test,Geospatial Sciences,3-5,11,6,54.54545455
+Fall 2023,Pre-Test,Neuroscience,K-2,9,5,55.55555556
+Fall 2023,Pre-Test,Neuroscience,3-5,10,9,90
+Fall 2023,Pre-Test,Entomology,K-2,10,7,70
+Fall 2023,Pre-Test,Entomology,3-5,13,7,53.84615385
+Fall 2023,Pre-Test,Cellular Biology,K-2,4,3,75
+Fall 2023,Pre-Test,Cellular Biology,3-5,11,5,45.45454545
+Fall 2023,Pre-Test,Kinesiology,K-2,7,3,42.85714286
+Fall 2023,Pre-Test,Kinesiology,3-5,10,7,70
+Fall 2023,Post-Test,Ecology,K-2,11,7,63.63636364
+Fall 2023,Post-Test,Ecology,3-5,8,8,100
+Fall 2023,Post-Test,Geospatial Sciences,K-2,7,7,100
+Fall 2023,Post-Test,Geospatial Sciences,3-5,9,7,77.77777778
+Fall 2023,Post-Test,Neuroscience,K-2,10,8,80
+Fall 2023,Post-Test,Neuroscience,3-5,7,7,100
+Fall 2023,Post-Test,Entomology,K-2,5,4,80
+Fall 2023,Post-Test,Entomology,3-5,9,6,66.66666667
+Fall 2023,Post-Test,Cellular Biology,K-2,4,4,100
+Fall 2023,Post-Test,Cellular Biology,3-5,8,5,62.5
+Fall 2023,Post-Test,Kinesiology,K-2,5,5,100
+Fall 2023,Post-Test,Kinesiology,3-5,6,5,83.33333333
+Spring 2022,Pre-Test,Volcanology,K-2,14,5,35.71428571
+Spring 2022,Pre-Test,Volcanology,3-5,4,2,50
+Spring 2022,Pre-Test,Materials Science,K-2,17,3,17.64705882
+Spring 2022,Pre-Test,Materials Science,3-5,4,2,50
+Spring 2022,Pre-Test,Engineering,K-2,12,3,25
+Spring 2022,Pre-Test,Engineering,3-5,N/A,N/A,N/A
+Spring 2022,Pre-Test,Archaeology,K-2,12,1,8.333333333
+Spring 2022,Pre-Test,Archaeology,3-5,4,0,0
+Spring 2022,Pre-Test,Neurology,K-2,15,5,33.33333333
+Spring 2022,Pre-Test,Neurology,3-5,5,2,40
+Spring 2022,Pre-Test,Dentistry,K-2,7,4,57.14285714
+Spring 2022,Pre-Test,Dentistry,3-5,3,2,66.66666667
+Spring 2022,Post-Test,Volcanology,K-2,16,13,81.25
+Spring 2022,Post-Test,Volcanology,3-5,5,4,80
+Spring 2022,Post-Test,Materials Science,K-2,15,10,66.66666667
+Spring 2022,Post-Test,Materials Science,3-5,4,3,75
+Spring 2022,Post-Test,Engineering,K-2,10,N/A,N/A
+Spring 2022,Post-Test,Engineering,3-5,4,N/A,N/A
+Spring 2022,Post-Test,Archaeology,K-2,11,7,63.63636364
+Spring 2022,Post-Test,Archaeology,3-5,4,3,75
+Spring 2022,Post-Test,Neurology,K-2,9,N/A,N/A
+Spring 2022,Post-Test,Neurology,3-5,4,N/A,N/A
+Spring 2022,Post-Test,Dentistry,K-2,N/A,N/A,N/A
+Spring 2022,Post-Test,Dentistry,3-5,4,1,25
