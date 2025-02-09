@@ -20,6 +20,8 @@ library(tidyr)
 library(tm)
 library(ggwordcloud)
 
+library(wesanderson)
+
 ```
 
 ```{r}
@@ -317,5 +319,57 @@ ggplot(data_summary, aes(x = reorder(Activity, Mean), y = Mean)) +
 
 
 ```
+```{r}
 
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(RColorBrewer)
+library(wesanderson)
+library(stringr)  # For text wrapping
+
+# Data for K-2 and 3-5
+topics <- c("Ecology", "Neurobiology", "Geospatial Sciences", "Entomology", "Cellular Biology", "Kinesiology")
+votes_k2 <- c(2, 0, 0, 0, 1, 2)
+votes_35 <- c(1, 2, 1, 1, 2, 1)
+
+# Combine votes for K-5
+votes_combined <- votes_k2 + votes_35
+
+# Create a data frame
+data <- data.frame(
+  Topic = topics,
+  Votes = votes_combined
+)
+
+# Remove topics with 0 votes
+data <- data %>% filter(Votes > 0)
+
+# Compute percentages for the donut chart
+data <- data %>%
+  mutate(
+    Fraction = Votes / sum(Votes),
+    ymax = cumsum(Fraction),
+    ymin = c(0, head(ymax, -1)),
+    LabelPosition = (ymax + ymin) / 2,
+    Label = paste0(str_wrap(Topic, width = 12), "\n", round(Fraction * 100, 1), "%")  # Wrapped text
+  )
+
+# Create the donut chart
+ggplot(data, aes(ymax = ymax, ymin = ymin, xmax = 4, xmin = 3, fill = Topic)) +
+  geom_rect(color = "white") +
+  geom_text(aes(x = 3.5, y = LabelPosition, label = str_wrap(Label, width = 10)), 
+            size = 3) + 
+  scale_fill_manual(values = wes_palette("Darjeeling1", n = nrow(data), type = "continuous")) +
+  coord_polar(theta = "y") +
+  xlim(c(2, 4)) +  # Controls thickness of the donut
+  theme_void() +
+  theme(
+    legend.position = "none"
+  ) +
+  labs(title = "Favorite Topics for K-5")
+
+
+
+```
 
