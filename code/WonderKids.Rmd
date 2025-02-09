@@ -13,14 +13,11 @@ library(tidyr)
 library(tm)
 library(wordcloud)
 library(ggwordcloud)
-
-library(ggplot2)
-library(dplyr)
-library(tidyr)
-library(tm)
-library(ggwordcloud)
-
 library(wesanderson)
+library(stringr)
+library(readr)
+library(gt)
+
 
 ```
 
@@ -113,105 +110,20 @@ ggsave("../outputs/word_cloud.png", width = 8, height = 6)
 
 ```
 
-
 ```{r}
 
-# Box and Whisker Plot (Jittered)
-
-# Load the dataset
-data <- read_csv("../data/pre_post_test_scores.csv", show_col_types = FALSE)
-
-# Rename columns for clarity
-data <- data %>%
-  rename(
-    Semester = `Semester`,
-    Test_Type = `Test Type`,
-    STEM_Topic = `STEM Topic`,
-    Class = `Class`,
-    Total_Students = `Total Students`,
-    Correct = `# correct`,
-    Percent = `%`
-  )
-
-# Convert N/A to NA
-data[data == "N/A"] <- NA
-
-# Convert necessary columns to numeric
-data <- data %>%
-  mutate(
-    Total_Students = as.numeric(Total_Students),
-    Correct = as.numeric(Correct),
-    Percent = as.numeric(Percent)
-  )
-
-# Separate pre and post-tests
-pre_tests <- data %>% filter(Test_Type == "Pre-Test")
-post_tests <- data %>% filter(Test_Type == "Post-Test")
-
-# Join pre and post-tests
-improvement_data <- pre_tests %>%
-  rename(Pre_Total_Students = Total_Students, Pre_Correct = Correct, Pre_Percent = Percent) %>%
-  left_join(post_tests %>%
-              rename(Post_Total_Students = Total_Students, Post_Correct = Correct, Post_Percent = Percent),
-            by = c("Semester", "STEM_Topic", "Class"))
-
-# Calculate improvement and remove NA values
-improvement_data <- improvement_data %>%
-  mutate(Improvement = as.numeric(Post_Percent) - as.numeric(Pre_Percent)) %>%
-  select(Semester, Class, Improvement) %>%
-  drop_na()
-
-# Convert Semester into an ordered factor to control display order
-improvement_data$Semester <- factor(improvement_data$Semester, levels = c("Spring 2023", "Fall 2023"))
-
-# Plot the overall improvement, faceted by Class (K-2 and 3-5)
-ggplot(improvement_data, aes(x = Semester, y = Improvement, fill = Semester)) +
-  geom_boxplot(outlier.shape = NA) +
-  geom_jitter(alpha = 0.3, width = 0.2) +
-  facet_wrap(~ Class) +
-  labs(
-    title = "Overall Improvement from Pre to Post Test by Semester and Class",
-    x = "Semester",
-    y = "Improvement (%)"
-  ) 
-
-# Save the plot
-ggsave("../outputs/faceted_pre_post_test_improvement.png", width = 7.29, height = 4.5, dpi = 300)
-
-
-
-```
-
-```{r}
-
-
-# Load necessary libraries
-library(tidyverse)
-library(gt)
-
-# Load the data
-data <- read_csv("../data/2023_Fall_Speaker_Survey.csv")
-
-# Data Cleaning: Rename columns for better readability
-data <- data %>%
-  rename(
-    `Overall Rating` = `Overall, how do you feel your lesson went?`,
-    `Background Knowledge of Students` = `Did the students seem to have background knowledge of some of the topics addressed in your lesson?`,
-    `Engagement & Enjoyment` = `Were the students engaged in the lesson and did they seem to enjoy it?`,
-    `Staff Helpfulness` = `Were the Wonderkids staff helpful in preparing you and with online classroom management?`
-  )
 
 # Scale responses for comparability
 data <- data %>%
   mutate(
-    `Background Knowledge of Students` = `Background Knowledge of Students` * 2,
-    `Engagement & Enjoyment` = `Engagement & Enjoyment` * 2,
-    `Staff Helpfulness` = `Staff Helpfulness` * 2
+    Background_Knowledge = Background_Knowledge * 2,
+    Engagement_Enjoyment = Engagement_Enjoyment * 2,
+    Staff_Helpfulness = Staff_Helpfulness * 2
   )
 
 # Calculate summary statistics
 summary_table <- data %>%
-  select(`Overall Rating`, `Background Knowledge of Students`, `Engagement & Enjoyment`, `Staff Helpfulness`) %>%
+  select(Overall_Rating, Background_Knowledge, Engagement_Enjoyment, Staff_Helpfulness) %>%
   pivot_longer(cols = everything(), names_to = "Question", values_to = "Response") %>%
   group_by(Question) %>%
   summarize(
@@ -259,37 +171,120 @@ formatted_table <- summary_table %>%
 formatted_table
 
 
+
 ```
+
 
 ```{r}
 
-# Load necessary libraries
-library(ggplot2)
-library(dplyr)
+# Load the dataset
+data <- read_csv("../data/pre_post_test_scores_spring_2023_fall_2023.csv", show_col_types = FALSE)
 
-# Data for activities and votes
-activities <- c(
-  "Predator/prey simulation and make a Galapagos Ecosystem",
-  "Make Your Own Compass",
-  "Making Topographic Maps and Make Your Own Map",
-  "Brain Hats",
-  "Neurons in a Bottle",
-  "Build Your Own Insect/Pasta Insect Life Cycle",
-  "Candy DNA",
-  "Make an Animal Cell",
-  "Practice Placing Motion Capture Markers",
-  "Make a Muscle"
-)
+# Rename columns for clarity
+data <- data %>%
+  rename(
+    Semester = `Semester`,
+    Test_Type = `Test Type`,
+    STEM_Topic = `STEM Topic`,
+    Class = `Class`,
+    Total_Students = `Total Students`,
+    Correct = `# correct`,
+    Percent = `%`
+  )
 
-votes_3_5 <- c(5, 2, 1, 4, 1, 5, 6, 1, 2, 1)
-votes_k_2 <- c(1, 0, 3, 2, 2, 1, 2, 0, 0, 0)
+# Convert N/A to NA
+data[data == "N/A"] <- NA
 
-# Combine data for K-5
-data <- data.frame(
-  Activity = rep(activities, 2),
-  Votes = c(votes_3_5, votes_k_2),
-  Group = rep(c("3-5", "K-2"), each = length(activities))
-)
+# Convert necessary columns to numeric
+data <- data %>%
+  mutate(
+    Total_Students = as.numeric(Total_Students),
+    Correct = as.numeric(Correct),
+    Percent = as.numeric(Percent)
+  )
+
+# Filter for Fall 2023
+fall_2023_data <- data %>% filter(Semester == "Fall 2023")
+
+# Combine pre- and post-test data for Fall 2023
+fall_2023_plot_data <- fall_2023_data %>%
+  select(Test_Type, Class, Percent) %>%
+  mutate(Test_Type = factor(Test_Type, levels = c("Pre-Test", "Post-Test")))
+
+# Plot the data
+ggplot(fall_2023_plot_data, aes(x = Test_Type, y = Percent, fill = Test_Type)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(alpha = 0.3, width = 0.2, aes(color = Test_Type)) +
+  facet_wrap(~ Class) +
+  labs(
+    title = "Fall 2023 Pre-Test vs. Post-Test Percentages",
+    x = "Test Type",
+    y = "Percent (%)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+# Save the plot
+ggsave("../outputs/fall_2023_pre_post_test_comparison.png", width = 7.29, height = 4.5, dpi = 300)
+
+
+
+
+```
+
+
+```{r}
+
+# Box and Whisker Plot (Jittered)
+
+
+# Separate pre and post-tests
+pre_tests <- data %>% filter(Test_Type == "Pre-Test")
+post_tests <- data %>% filter(Test_Type == "Post-Test")
+
+# Join pre and post-tests
+improvement_data <- pre_tests %>%
+  rename(Pre_Total_Students = Total_Students, Pre_Correct = Correct, Pre_Percent = Percent) %>%
+  left_join(post_tests %>%
+              rename(Post_Total_Students = Total_Students, Post_Correct = Correct, Post_Percent = Percent),
+            by = c("Semester", "STEM_Topic", "Class"))
+
+# Calculate improvement and remove NA values
+improvement_data <- improvement_data %>%
+  mutate(Improvement = as.numeric(Post_Percent) - as.numeric(Pre_Percent)) %>%
+  select(Semester, Class, Improvement) %>%
+  drop_na()
+
+# Convert Semester into an ordered factor to control display order
+improvement_data$Semester <- factor(improvement_data$Semester, levels = c("Spring 2023", "Fall 2023"))
+
+# Plot the overall improvement, faceted by Class (K-2 and 3-5)
+ggplot(improvement_data, aes(x = Semester, y = Improvement, fill = Semester)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(alpha = 0.3, width = 0.2) +
+  facet_wrap(~ Class) +
+  labs(
+    title = "Overall Improvement from Pre to Post Test by Semester and Class",
+    x = "Semester",
+    y = "Improvement (%)"
+  ) +
+  theme(legend.position = "none")
+
+# Save the plot
+ggsave("../outputs/faceted_pre_post_test_improvement.png", width = 7.29, height = 4.5, dpi = 300)
+
+
+
+```
+
+
+```{r}
+
+
+data <- read_csv("../data/favorite_activities_fall_2023.csv")
 
 # Calculate mean and standard deviation for each activity across K-2 and 3-5
 data_summary <- data %>%
@@ -308,42 +303,15 @@ ggplot(data_summary, aes(x = reorder(Activity, Mean), y = Mean)) +
   labs(
     title = "Favorite Activities for Grades K-5",
     x = "Activity",
-    y = "Mean Votes"
-  ) +
-  theme_minimal() +
-  theme(
-    axis.text.y = element_text(size = 10),
-    axis.text.x = element_text(size = 10),
-    plot.title = element_text(hjust = 0.5, size = 14)
-  )
+    y = "Mean Votes")
+    
 
 
 ```
+
 ```{r}
 
-# Load necessary libraries
-library(ggplot2)
-library(dplyr)
-library(RColorBrewer)
-library(wesanderson)
-library(stringr)  # For text wrapping
-
-# Data for K-2 and 3-5
-topics <- c("Ecology", "Neurobiology", "Geospatial Sciences", "Entomology", "Cellular Biology", "Kinesiology")
-votes_k2 <- c(2, 0, 0, 0, 1, 2)
-votes_35 <- c(1, 2, 1, 1, 2, 1)
-
-# Combine votes for K-5
-votes_combined <- votes_k2 + votes_35
-
-# Create a data frame
-data <- data.frame(
-  Topic = topics,
-  Votes = votes_combined
-)
-
-# Remove topics with 0 votes
-data <- data %>% filter(Votes > 0)
+data <- read_csv("../data/favorite_topics_fall_2023.csv")
 
 # Compute percentages for the donut chart
 data <- data %>%
@@ -355,21 +323,120 @@ data <- data %>%
     Label = paste0(str_wrap(Topic, width = 12), "\n", round(Fraction * 100, 1), "%")  # Wrapped text
   )
 
-# Create the donut chart
+# Plot
 ggplot(data, aes(ymax = ymax, ymin = ymin, xmax = 4, xmin = 3, fill = Topic)) +
   geom_rect(color = "white") +
   geom_text(aes(x = 3.5, y = LabelPosition, label = str_wrap(Label, width = 10)), 
             size = 3) + 
-  scale_fill_manual(values = wes_palette("Darjeeling1", n = nrow(data), type = "continuous")) +
+  scale_fill_manual(values = wes_palette("Darjeeling1", n = nrow(data), type = "continuous")) + # Chosen bc Darjeeling1 is colorblind friendly
   coord_polar(theta = "y") +
   xlim(c(2, 4)) +  # Controls thickness of the donut
   theme_void() +
   theme(
-    legend.position = "none"
+    legend.position = "none",
+    plot.title = element_text(size = 14, hjust = 0.5)
   ) +
   labs(title = "Favorite Topics for K-5")
 
 
-
 ```
 
+
+```{r}
+
+# Load the dataset
+attendance <- read_csv("../data/fall_2023_attendance.csv", show_col_types = FALSE)
+
+# Calculate percentage attendance
+attendance <- attendance %>%
+  mutate(Percent_Attended = (Attended / Total_lessons) * 100) %>%
+  filter(!is.na(Percent_Attended))
+
+# Summary statistics by grade
+attendance_summary <- attendance %>%
+  group_by(Grade) %>%
+  summarize(
+    Avg_Attended = mean(Attended, na.rm = TRUE),
+    Avg_Percent = mean(Percent_Attended, na.rm = TRUE),
+    SD_Attended = sd(Attended, na.rm = TRUE),
+    n = n(),
+    .groups = "drop"
+  )
+
+# Order the grades to ensure Kindergarten appears first
+attendance$Grade <- factor(attendance$Grade, levels = c("Kindergarten", "1st", "2nd", "3rd", "4th", "5th", "6th"))
+
+# Define color palette (Remove black from Okabe-Ito)
+okabe_ito_colors <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")  # Excluding black
+
+# Boxplot of attendance by grade
+ggplot(attendance, aes(x = Grade, y = Percent_Attended, fill = Grade)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(alpha = 0.4, color = "gray30", width = 0.2) +  # Use dark gray for better visibility
+  scale_fill_manual(values = okabe_ito_colors) +
+  labs(
+    title = "Attendance Distribution by Grade",
+    x = "Grade",
+    y = "Attendance (%)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# Bar plot of average attendance by grade
+ggplot(attendance_summary, aes(x = Grade, y = Avg_Percent, fill = Grade)) +
+  geom_bar(stat = "identity", width = 0.7) +
+  scale_fill_manual(values = okabe_ito_colors) +
+  geom_errorbar(
+    aes(ymin = Avg_Percent - SD_Attended, ymax = Avg_Percent + SD_Attended),
+    width = 0.2
+  ) +
+  labs(
+    title = "Average Attendance by Grade",
+    x = "Grade",
+    y = "Average Attendance (%)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# Create a formatted table using gt
+attendance_table <- attendance_summary %>%
+  gt() %>%
+  tab_header(
+    title = "Attendance Summary by Grade",
+    subtitle = "Fall 2023 Attendance Data"
+  ) %>%
+  cols_label(
+    Grade = "Grade",
+    Avg_Attended = "Avg. Lessons Attended",
+    Avg_Percent = "Avg. Attendance (%)",
+    SD_Attended = "Standard Deviation",
+    n = "Sample Size (n)"
+  ) %>%
+  tab_spanner(
+    label = "Attendance Metrics",
+    columns = c(Avg_Attended, Avg_Percent, SD_Attended)
+  ) %>%
+  fmt_number(
+    columns = c(Avg_Attended, Avg_Percent, SD_Attended),
+    decimals = 2
+  ) %>%
+  tab_footnote(
+    footnote = "Percentages and averages calculated based on total lessons attended.",
+    locations = cells_column_labels(columns = Avg_Percent)
+  ) %>%
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_column_spanners()
+  ) %>%
+  tab_options(
+    table.font.size = 12,
+    column_labels.font.size = 14
+  )
+
+# Print the table
+attendance_table
+
+
+
+
+```
