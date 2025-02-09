@@ -9,6 +9,10 @@ rm(list = ls())
 library(dplyr)
 library(ggplot2)
 library(readr)
+library(tidyr)
+library(tm)
+library(wordcloud)
+library(ggwordcloud)
 
 ```
 
@@ -21,13 +25,7 @@ head(data)
 ```
 
 ```{r}
-
-# Load necessary libraries
-library(ggplot2)
-library(dplyr)
-library(tidyr)
-library(tm)
-library(wordcloud)
+# nothing from here
 
 # Data Cleaning
 data$`Overall, how do you feel your lesson went?` <- as.numeric(data$`Overall, how do you feel your lesson went?`)
@@ -90,7 +88,10 @@ ggsave("word_cloud.png")
 
 
 ```
+
 ```{r}
+
+# wordcloud from here
 
 # Load necessary libraries
 library(ggplot2)
@@ -166,6 +167,8 @@ ggsave("word_cloud.png")
 ```
 
 ```{r}
+
+# nothing from here
 
 # Load necessary libraries
 library(ggplot2)
@@ -247,6 +250,7 @@ ggsave("word_cloud.png")
 
 ```{r}
 
+# nothing from here
 
 # Load necessary libraries
 library(ggplot2)
@@ -325,7 +329,11 @@ ggsave("frequent_terms_barplot.png")
 
 
 ```
+
+
 ```{r}
+
+# nothing from here
 
 # Load necessary libraries
 library(ggplot2)
@@ -412,16 +420,10 @@ ggsave("frequent_terms_barplot.png")
 
 
 ```
+
 ```{r}
 
-# Load necessary libraries
-library(ggplot2)
-library(dplyr)
-library(tidyr)
-library(tm)
-library(ggwordcloud)
-
-# Load the data
+# nothing from here
 
 # Data Cleaning
 data$`Overall, how do you feel your lesson went?` <- as.numeric(data$`Overall, how do you feel your lesson went?`) / 2
@@ -464,7 +466,7 @@ text_data <- paste(data$`What information did you share with the students to ins
                    sep = " ")
 
 # Create a custom stopword list
-custom_stopwords <- c(stopwords("english"), "also", "just", "like", "can", "one", "get", "even", "now", "still", "will", "say", "make", "think", "really", "see", "us", "go", "come")
+custom_stopwords <- c(stopwords("english"), "also", "just", "like", "can", "one", "get", "even", "now", "still", "will", "say", "think", "really", "see", "us", "go", "come")
 
 # Create a corpus
 corpus <- Corpus(VectorSource(text_data))
@@ -497,3 +499,299 @@ ggplot(word_freq_df[1:10, ], aes(x = reorder(word, freq), y = freq)) +
 
 ```
 
+```{r}
+
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(readr)
+
+# Load the data
+data <- read_csv("../data/pre_post_test_scores.csv")
+
+# Print the column names to verify them
+colnames(data)
+
+# Rename columns to remove spaces and special characters
+data <- data %>%
+  rename(
+    Semester = `Semester`,
+    Test_Type = `Test Type`,
+    STEM_Topic = `STEM Topic`,
+    Class = `Class`,
+    Total_Students = `Total Students`,
+    Correct = `# correct`,
+    Percent = `%`
+  )
+
+# Convert N/A to NA
+data[data == "N/A"] <- NA
+
+# Convert columns to numeric
+data$Total_Students <- as.numeric(data$Total_Students)
+data$Correct <- as.numeric(data$Correct)
+data$Percent <- as.numeric(data$Percent)
+
+# Summary of the data
+summary(data)
+
+# Plot Pre vs. Post Test Scores
+ggplot(data, aes(x = factor(STEM_Topic), y = Percent, fill = Test_Type)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(alpha = 0.1, width = 0.1) +
+  facet_wrap(~ Class) +
+  labs(title = "Comparison of Pre and Post Test Scores by STEM Topic and Class", x = "STEM Topic", y = "Percentage Correct") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Save plot
+ggsave("pre_post_test_scores_comparison.png")
+
+
+```
+
+```{r}
+
+# we will use this jitter plot
+
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# Load the data
+data <- read_csv("../data/pre_post_test_scores.csv")
+
+# Rename columns to remove spaces and special characters
+data <- data %>%
+  rename(
+    Semester = `Semester`,
+    Test_Type = `Test Type`,
+    STEM_Topic = `STEM Topic`,
+    Class = `Class`,
+    Total_Students = `Total Students`,
+    Correct = `# correct`,
+    Percent = `%`
+  )
+
+# Convert N/A to NA
+data[data == "N/A"] <- NA
+
+# Convert columns to numeric
+data$Total_Students <- as.numeric(data$Total_Students)
+data$Correct <- as.numeric(data$Correct)
+data$Percent <- as.numeric(data$Percent)
+
+# Separate pre and post tests
+pre_tests <- data %>% filter(Test_Type == "Pre-Test")
+post_tests <- data %>% filter(Test_Type == "Post-Test")
+
+# Join pre and post tests on STEM Topic, Class, and Semester
+improvement_data <- pre_tests %>%
+  rename(Pre_Total_Students = Total_Students, Pre_Correct = Correct, Pre_Percent = Percent) %>%
+  left_join(post_tests %>%
+              rename(Post_Total_Students = Total_Students, Post_Correct = Correct, Post_Percent = Percent),
+            by = c("Semester", "STEM_Topic", "Class"))
+
+# Calculate improvements
+improvement_data <- improvement_data %>%
+  mutate(Improvement = Post_Percent - Pre_Percent) %>%
+  select(Semester, STEM_Topic, Class, Improvement)
+
+# Summary of the data
+summary(improvement_data)
+
+# Plot the improvements
+ggplot(improvement_data, aes(x = Semester, y = Improvement, fill = Class)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(alpha = 0.1, width = 0.1) +
+  facet_wrap(~ Class) +
+  labs(title = "Improvement from Pre to Post Test by Semester and Class", x = "Semester", y = "Improvement (%)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Save plot
+ggsave("pre_post_test_improvement.png")
+
+
+```
+
+```{r}
+
+
+# Load necessary libraries
+library(tidyverse)
+library(gt)
+
+# Load the data
+data <- read_csv("../data/2023_Fall_Speaker_Survey.csv")
+
+# Data Cleaning: Rename columns for better readability
+data <- data %>%
+  rename(
+    `Overall Rating` = `Overall, how do you feel your lesson went?`,
+    `Background Knowledge of Students` = `Did the students seem to have background knowledge of some of the topics addressed in your lesson?`,
+    `Engagement & Enjoyment` = `Were the students engaged in the lesson and did they seem to enjoy it?`,
+    `Staff Helpfulness` = `Were the Wonderkids staff helpful in preparing you and with online classroom management?`
+  )
+
+# Scale responses for comparability
+data <- data %>%
+  mutate(
+    `Background Knowledge of Students` = `Background Knowledge of Students` * 2,
+    `Engagement & Enjoyment` = `Engagement & Enjoyment` * 2,
+    `Staff Helpfulness` = `Staff Helpfulness` * 2
+  )
+
+# Calculate summary statistics
+summary_table <- data %>%
+  select(`Overall Rating`, `Background Knowledge of Students`, `Engagement & Enjoyment`, `Staff Helpfulness`) %>%
+  pivot_longer(cols = everything(), names_to = "Question", values_to = "Response") %>%
+  group_by(Question) %>%
+  summarize(
+    Mean = mean(Response, na.rm = TRUE),
+    SD = sd(Response, na.rm = TRUE),
+    n = n(),
+    .groups = "drop"
+  )
+
+# Create a formatted table using gt
+formatted_table <- summary_table %>%
+  gt() %>%
+  tab_header(
+    title = "Lesson Ratings by Question",
+    subtitle = "Fall 2023 Speaker Feedback"
+  ) %>%
+  cols_label(
+    Question = "Survey Question",
+    Mean = "Mean Response",
+    SD = "Standard Deviation",
+    n = "Sample Size (n)"
+  ) %>%
+  tab_spanner(
+    label = "Response Summary",
+    columns = c(Mean, SD, n)
+  ) %>%
+  fmt_number(
+    columns = c(Mean, SD),
+    decimals = 2
+  ) %>%
+  tab_footnote(
+    footnote = "Mean and Standard Deviation calculated from speaker feedback responses. Scaled to a maximum of 10.",
+    locations = cells_column_labels(columns = c(Mean, SD))
+  ) %>%
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_column_spanners()
+  ) %>%
+  tab_options(
+    table.font.size = 12,
+    column_labels.font.size = 14
+  )
+
+# Print the table
+formatted_table
+
+
+```
+
+```{r}
+
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+
+# Data for activities and votes
+activities <- c(
+  "Predator/prey simulation and make a Galapagos Ecosystem",
+  "Make Your Own Compass",
+  "Making Topographic Maps and Make Your Own Map",
+  "Brain Hats",
+  "Neurons in a Bottle",
+  "Build Your Own Insect/Pasta Insect Life Cycle",
+  "Candy DNA",
+  "Make an Animal Cell",
+  "Practice Placing Motion Capture Markers",
+  "Make a Muscle"
+)
+
+votes_3_5 <- c(5, 2, 1, 4, 1, 5, 6, 1, 2, 1)
+votes_k_2 <- c(1, 0, 3, 2, 2, 1, 2, 0, 0, 0)
+
+# Combine data for K-5
+data <- data.frame(
+  Activity = rep(activities, 2),
+  Votes = c(votes_3_5, votes_k_2),
+  Group = rep(c("3-5", "K-2"), each = length(activities))
+)
+
+# Calculate mean and standard deviation for each activity across K-2 and 3-5
+data_summary <- data %>%
+  group_by(Activity) %>%
+  summarize(
+    Mean = mean(Votes),
+    SD = sd(Votes),
+    .groups = "drop"
+  )
+
+# Create the bar plot with error bars extending only upwards
+ggplot(data_summary, aes(x = reorder(Activity, Mean), y = Mean)) +
+  geom_bar(stat = "identity", width = 0.7) +
+  geom_errorbar(aes(ymin = Mean, ymax = Mean + SD), width = 0.2) +  # Error bars only extend upwards
+  coord_flip() +
+  labs(
+    title = "Favorite Activities for Grades K-5",
+    x = "Activity",
+    y = "Mean Votes"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10),
+    plot.title = element_text(hjust = 0.5, size = 14)
+  )
+
+
+```
+```{r}
+
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(wesanderson)
+
+# Data for K-2 and 3-5
+topics <- c("Ecology", "Neurobiology", "Geospatial Sciences", "Entomology", "Cellular Biology", "Kinesiology")
+votes_k2 <- c(2, 0, 0, 0, 1, 2)
+votes_35 <- c(1, 2, 1, 1, 2, 1)
+
+# Combine the data for K-5
+votes_combined <- votes_k2 + votes_35
+
+# Create a data frame
+data <- data.frame(
+  Topic = topics,
+  Votes = votes_combined
+)
+
+# Calculate percentages for the donut chart
+data <- data %>%
+  mutate(Percentage = Votes / sum(Votes) * 100)
+
+# Create a donut chart with a hole in the middle
+ggplot(data, aes(x = 2, y = Votes, fill = Topic)) +
+  geom_bar(stat = "identity", width = 0.5, color = "white") +  # Set width to create the "hole"
+  coord_polar(theta = "y") +
+  geom_text(aes(label = paste0(round(Percentage, 1), "%")), 
+            position = position_stack(vjust = 0.5), size = 5, color = "white") +
+  theme_void() +
+  labs(title = "Favorite Topics for K-5") +
+  theme(
+    plot.title = element_text(size = 16, hjust = 0.5),
+    legend.title = element_blank(),
+    legend.text = element_text(size = 12)
+  ) +
+  xlim(0.5, 2.5)  # Create space for the hole in the middle
+
+
+```
