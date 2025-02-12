@@ -17,7 +17,7 @@ library(wesanderson)
 library(stringr)
 library(readr)
 library(gt)
-
+library(conflicted)
 
 ```
 
@@ -176,6 +176,9 @@ formatted_table
 
 ```{r}
 
+# Load necessary libraries
+library(tidyverse)
+
 # Load the dataset
 data <- read_csv("../data/pre_post_test_scores_spring_2023_fall_2023.csv", show_col_types = FALSE)
 
@@ -191,7 +194,7 @@ data <- data %>%
     Percent = `%`
   )
 
-# Convert N/A to NA
+# Convert "N/A" to NA
 data[data == "N/A"] <- NA
 
 # Convert necessary columns to numeric
@@ -205,13 +208,47 @@ data <- data %>%
 # Filter for Fall 2023
 fall_2023_data <- data %>% filter(Semester == "Fall 2023")
 
-# Combine pre- and post-test data for Fall 2023
-fall_2023_plot_data <- fall_2023_data %>%
-  select(Test_Type, Class, Percent) %>%
-  mutate(Test_Type = factor(Test_Type, levels = c("Pre-Test", "Post-Test")))
+# Reshape data: pivot pre-test and post-test scores into separate columns
+fall_2023_wide <- fall_2023_data %>%
+  select(Semester, Class, STEM_Topic, Test_Type, Percent) %>%
+  pivot_wider(names_from = Test_Type, values_from = Percent, names_prefix = "Test_") %>%
+  rename(Test_Pre = `Test_Pre-Test`, Test_Post = `Test_Post-Test`) %>% # Rename problematic columns
+  drop_na()  # Remove any rows with NA values
+
+# Check column names to ensure correct pivoting
+print("Column names after pivoting:")
+print(colnames(fall_2023_wide))
+
+# Print **median** values for each test type
+median_values <- fall_2023_data %>%
+  group_by(Class, Test_Type) %>%
+  summarize(Median_Score = median(Percent, na.rm = TRUE), .groups = "drop")
+
+print("Median Values for Pre-Test and Post-Test:")
+print(median_values)
+
+# Perform paired t-tests for K-2 and 3-5
+if ("Test_Pre" %in% colnames(fall_2023_wide) & "Test_Post" %in% colnames(fall_2023_wide)) {
+  t_test_k2 <- t.test(fall_2023_wide$Test_Pre[fall_2023_wide$Class == "K-2"],
+                      fall_2023_wide$Test_Post[fall_2023_wide$Class == "K-2"],
+                      paired = TRUE, na.action = na.omit)
+
+  t_test_35 <- t.test(fall_2023_wide$Test_Pre[fall_2023_wide$Class == "3-5"],
+                      fall_2023_wide$Test_Post[fall_2023_wide$Class == "3-5"],
+                      paired = TRUE, na.action = na.omit)
+
+  # Print t-test results
+  print("T-Test Results for K-2:")
+  print(t_test_k2)
+
+  print("T-Test Results for 3-5:")
+  print(t_test_35)
+} else {
+  print("Error: Pre-Test or Post-Test columns are missing. Check pivot_wider().")
+}
 
 # Plot the data
-ggplot(fall_2023_plot_data, aes(x = Test_Type, y = Percent, fill = Test_Type)) +
+ggplot(fall_2023_data, aes(x = Test_Type, y = Percent, fill = Test_Type)) +
   geom_boxplot(outlier.shape = NA) +
   geom_jitter(alpha = 0.3, width = 0.2) +
   facet_wrap(~ Class) +
@@ -231,7 +268,6 @@ ggsave("../outputs/fall_2023_pre_post_test_comparison.png", width = 7.29, height
 
 
 
-
 ```
 
 ```{r}
@@ -241,6 +277,15 @@ data_k5 <- data %>%
   filter(Semester == "Fall 2023") %>%  # Ensure we're analyzing Fall 2023
   select(Test_Type, Percent) %>%
   mutate(Test_Type = factor(Test_Type, levels = c("Pre-Test", "Post-Test")))
+
+# Compute median values for each test type
+median_values <- data_k5 %>%
+  group_by(Test_Type) %>%
+  summarize(Median_Score = median(Percent, na.rm = TRUE), .groups = "drop")
+
+# Print median values
+print("Median Values for Pre-Test and Post-Test:")
+print(median_values)
 
 # Perform Student's t-test (Unpaired Two-Sample t-test)
 pre_test_scores <- data_k5 %>% filter(Test_Type == "Pre-Test") %>% pull(Percent)
@@ -281,6 +326,7 @@ ggsave("../outputs/k5_pre_post_test_comparison.png", width = 7.29, height = 4.5,
 
 
 
+
 ```
 
 ```{r}
@@ -314,7 +360,7 @@ ggplot(improvement_data, aes(x = Semester, y = Improvement, fill = Semester)) +
   geom_jitter(alpha = 0.3, width = 0.2) +
   facet_wrap(~ Class) +
   labs(
-    title = "Overall Improvement from Pre to Post Test by Semester and Class",
+    title = "Overall Improvement from Pre to Post Test by Semester and Group",
     x = "Semester",
     y = "Improvement (%)"
   ) +
@@ -329,27 +375,40 @@ ggsave("../outputs/faceted_pre_post_test_improvement.png", width = 7.29, height 
 
 ```{r}
 
+# Load the dataset
+data <- read_csv("../data/favorite_activities_fall_2023.csv", show_col_types = FALSE)
 
-data <- read_csv("../data/favorite_activities_fall_2023.csv")
-
-# Calculate mean and standard deviation for each activity across K-2 and 3-5
+# Calculate total votes per activity & standard deviation
 data_summary <- data %>%
-  group_by(Activity) %>%
+  group_by(Activity, Topic) %>%
   summarize(
-    Mean = mean(Votes),
-    SD = sd(Votes),
+    Total_Votes = sum(Votes, na.rm = TRUE),
+    SD_Votes = sd(Votes, na.rm = TRUE),  # Standard deviation for error bars
     .groups = "drop"
-  )
+  ) %>%
+  mutate(Percent_Votes = (Total_Votes / sum(Total_Votes)) * 100,
+         SD_Percent = (SD_Votes / sum(Total_Votes)) * 100)  # Convert to percentage
 
-# Create the bar plot with error bars extending only upwards
-ggplot(data_summary, aes(x = reorder(Activity, Mean), y = Mean)) +
+# Define color palette based on topics
+topic_colors <- wes_palette("Darjeeling1", n = length(unique(data_summary$Topic)), type = "continuous")
+
+# Create the bar plot with colors by topic & error bars extending only to the right
+ggplot(data_summary, aes(x = reorder(Activity, Percent_Votes), y = Percent_Votes, fill = Topic)) +
   geom_bar(stat = "identity", width = 0.7) +
-  geom_errorbar(aes(ymin = Mean, ymax = Mean + SD), width = 0.2) +  # Error bars only extend upwards
+  geom_errorbar(aes(ymin = Percent_Votes, ymax = Percent_Votes + SD_Percent), width = 0.2) +  # Error bars extend only to the right
   coord_flip() +
+  scale_fill_manual(values = topic_colors) +
   labs(
-    title = "Favorite Activities for Grades K-5",
+    title = "Favorite Activities for K-5",
     x = "Activity",
-    y = "Mean Votes")
+    y = "Percentage of Total Votes"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")  # Remove legend
+
+# Save the plot
+ggsave("../outputs/favorite_activities_by_topic_k5.png", width = 8, height = 6, dpi = 300)
+
     
 
 
@@ -375,7 +434,9 @@ plot(tukey_result)
 
 ```{r}
 
-data <- read_csv("../data/favorite_topics_fall_2023.csv")
+
+# Load the dataset
+data <- read_csv("../data/favorite_topics_fall_2023.csv", show_col_types = FALSE)
 
 # Compute percentages for the donut chart
 data <- data %>%
@@ -387,7 +448,15 @@ data <- data %>%
     Label = paste0(str_wrap(Topic, width = 12), "\n", round(Fraction * 100, 1), "%")  # Wrapped text
   )
 
-# Plot
+# ANOVA test to compare votes across topics
+anova_results <- aov(Votes ~ Topic, data = data)
+anova_summary <- summary(anova_results)
+
+# Print ANOVA results
+print("ANOVA Results for Favorite Topics:")
+print(anova_summary)
+
+# Plot the donut chart
 ggplot(data, aes(ymax = ymax, ymin = ymin, xmax = 4, xmin = 3, fill = Topic)) +
   geom_rect(color = "white") +
   geom_text(aes(x = 3.5, y = LabelPosition, label = str_wrap(Label, width = 10)), 
@@ -401,6 +470,10 @@ ggplot(data, aes(ymax = ymax, ymin = ymin, xmax = 4, xmin = 3, fill = Topic)) +
     plot.title = element_text(size = 14, hjust = 0.5)
   ) +
   labs(title = "Favorite Topics for K-5")
+
+# Save the plot
+ggsave("../outputs/favorite_topics_k5.png", width = 8, height = 6, dpi = 300)
+
 
 
 ```
@@ -523,6 +596,89 @@ print(tukey_results)
 
 # Plot
 plot(tukey_results, las = 1)
+
+
+```
+
+```{r}
+
+
+# Read in the attendance dataset
+attendance_full <- read_csv("../data/attendance_full.csv", show_col_types = FALSE)
+
+# Convert wide format to long format (pivot attendance data)
+attendance_long <- attendance_full %>%
+  pivot_longer(cols = -c(Grade, Student), names_to = "Date", values_to = "Attended")
+
+# Convert TRUE/FALSE attendance values to numeric (1 = attended, 0 = absent)
+attendance_long <- attendance_long %>%
+  mutate(
+    Attended = as.numeric(Attended), 
+    Date = as.Date(Date, format = "%m/%d")  # Convert to Date format
+  )
+
+# Ensure that Date conversion worked
+print(unique(attendance_long$Date))  # Check the unique dates
+
+# If Date is not in the correct format, try:
+attendance_long <- attendance_long %>%
+  mutate(Date = as.Date(Date, format = "%m/%d", origin = "2023-01-01"))
+
+# Calculate cumulative attendance decline over time
+attendance_summary <- attendance_long %>%
+  group_by(Date) %>%
+  summarize(
+    Attendance_Rate = mean(Attended, na.rm = TRUE) * 100  # Convert proportion to percentage
+  ) %>%
+  arrange(Date) %>%  # Ensure correct chronological order
+  mutate(
+    Attendance_Change = c(NA, diff(Attendance_Rate)),  # Compute rate of attendance change
+    Cumulative_Decline = 100 - Attendance_Rate  # Track cumulative decline
+  )
+
+
+# Plot attendance trends over time (Original trend)
+p1 <- ggplot(attendance_summary, aes(x = Date, y = Attendance_Rate)) +
+  geom_line() +
+  geom_point() +
+  labs(
+    title = "Attendance Trends Over Time",
+    x = "Date",
+    y = "Attendance Rate (%)"
+  ) 
+
+p1
+
+# Plot rate of change of attendance (How quickly students are leaving)
+p2 <- ggplot(attendance_summary, aes(x = Date, y = Attendance_Change)) +
+  geom_line() +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed") +  # Reference line for no change
+  labs(
+    title = "Rate of Change in Attendance Over Time",
+    x = "Date",
+    y = "Change in Attendance Rate (%)"
+  ) 
+
+p2
+
+# Save the plots
+ggsave("../outputs/attendance_trends_over_time.png", plot = p1, width = 7.5, height = 5, dpi = 300)
+ggsave("../outputs/attendance_rate_of_change.png", plot = p2, width = 7.5, height = 5, dpi = 300)
+
+
+
+```
+
+```{r}
+
+# Calculate overall attendance rate
+overall_attendance_rate <- attendance_long %>%
+  summarize(Overall_Attendance_Rate = mean(Attended, na.rm = TRUE) * 100) %>%
+  pull(Overall_Attendance_Rate)
+
+# Print the overall attendance rate
+print(paste("Overall Attendance Rate:", round(overall_attendance_rate, 2), "%"))
 
 
 ```
