@@ -206,7 +206,7 @@ data <- data %>%
   )
 
 # Filter for Fall 2023
-fall_2023_data <- data %>% filter(Semester == "Fall 2023")
+fall_2023_data <- data %>% dplyr::filter(Semester == "Fall 2023")
 
 # Reshape data: pivot pre-test and post-test scores into separate columns
 fall_2023_wide <- fall_2023_data %>%
@@ -253,11 +253,10 @@ ggplot(fall_2023_data, aes(x = Test_Type, y = Percent, fill = Test_Type)) +
   geom_jitter(alpha = 0.3, width = 0.2) +
   facet_wrap(~ Class) +
   labs(
-    title = "Fall 2023 Pre-Test vs. Post-Test Percentages",
-    x = "Test Type",
+    title = "Pre-Test vs. Post-Test Percentages (Fall 2023)",
+    x = "",
     y = "Percent (%)"
   ) +
-  theme_minimal() +
   theme(
     legend.position = "none",
     axis.text.x = element_text(angle = 45, hjust = 1)
@@ -274,7 +273,7 @@ ggsave("../outputs/fall_2023_pre_post_test_comparison.png", width = 7.29, height
 
 # Combine K-5 by removing Class column
 data_k5 <- data %>%
-  filter(Semester == "Fall 2023") %>%  # Ensure we're analyzing Fall 2023
+  dplyr::filter(Semester == "Fall 2023") %>%  # Ensure we're analyzing Fall 2023
   select(Test_Type, Percent) %>%
   mutate(Test_Type = factor(Test_Type, levels = c("Pre-Test", "Post-Test")))
 
@@ -288,8 +287,8 @@ print("Median Values for Pre-Test and Post-Test:")
 print(median_values)
 
 # Perform Student's t-test (Unpaired Two-Sample t-test)
-pre_test_scores <- data_k5 %>% filter(Test_Type == "Pre-Test") %>% pull(Percent)
-post_test_scores <- data_k5 %>% filter(Test_Type == "Post-Test") %>% pull(Percent)
+pre_test_scores <- data_k5 %>% dplyr::filter(Test_Type == "Pre-Test") %>% pull(Percent)
+post_test_scores <- data_k5 %>% dplyr::filter(Test_Type == "Post-Test") %>% pull(Percent)
 
 t_test_results <- t.test(pre_test_scores, post_test_scores, paired = FALSE, var.equal = TRUE)
 
@@ -313,7 +312,7 @@ ggplot(data_k5, aes(x = Test_Type, y = Percent, fill = Test_Type)) +
   geom_jitter(alpha = 0.3, width = 0.2) +
   labs(
     title = "Pre-Test vs. Post-Test Percentages (K-5, Fall 2023)",
-    x = "Test Type",
+    x = "",
     y = "Percent (%)"
   ) +
   theme(
@@ -335,8 +334,8 @@ ggsave("../outputs/k5_pre_post_test_comparison.png", width = 7.29, height = 4.5,
 
 
 # Separate pre and post-tests
-pre_tests <- data %>% filter(Test_Type == "Pre-Test")
-post_tests <- data %>% filter(Test_Type == "Post-Test")
+pre_tests <- data %>% dplyr::filter(Test_Type == "Pre-Test")
+post_tests <- data %>% dplyr::filter(Test_Type == "Post-Test")
 
 # Join pre and post-tests
 improvement_data <- pre_tests %>%
@@ -486,7 +485,7 @@ attendance <- read_csv("../data/fall_2023_attendance.csv", show_col_types = FALS
 # Calculate percentage attendance
 attendance <- attendance %>%
   mutate(Percent_Attended = (Attended / Total_lessons) * 100) %>%
-  filter(!is.na(Percent_Attended))
+  dplyr::filter(!is.na(Percent_Attended))
 
 # Summary statistics by grade
 attendance_summary <- attendance %>%
@@ -680,5 +679,186 @@ overall_attendance_rate <- attendance_long %>%
 # Print the overall attendance rate
 print(paste("Overall Attendance Rate:", round(overall_attendance_rate, 2), "%"))
 
+
+```
+
+```{r}
+
+# Box and Whisker Plot (Jittered)
+
+# Load the dataset
+data <- read_csv("../data/pre_post_test_scores_spring_2023_fall_2023.csv", show_col_types = FALSE)
+
+# Rename columns for clarity
+data <- data %>%
+  rename(
+    Semester = `Semester`,
+    Test_Type = `Test Type`,
+    STEM_Topic = `STEM Topic`,
+    Class = `Class`,
+    Total_Students = `Total Students`,
+    Correct = `# correct`,
+    Percent = `%`
+  )
+
+# Convert N/A to NA
+data[data == "N/A"] <- NA
+
+# Convert necessary columns to numeric
+data <- data %>%
+  mutate(
+    Total_Students = as.numeric(Total_Students),
+    Correct = as.numeric(Correct),
+    Percent = as.numeric(Percent)
+  )
+
+
+
+# Separate pre and post-tests
+pre_tests <- data %>% dplyr::filter(Test_Type == "Pre-Test")
+post_tests <- data %>% dplyr::filter(Test_Type == "Post-Test")
+
+# Join pre and post-tests
+improvement_data <- pre_tests %>%
+  rename(Pre_Total_Students = Total_Students, Pre_Correct = Correct, Pre_Percent = Percent) %>%
+  left_join(post_tests %>%
+              rename(Post_Total_Students = Total_Students, Post_Correct = Correct, Post_Percent = Percent),
+            by = c("Semester", "STEM_Topic", "Class"))
+
+# Calculate improvement and remove NA values
+improvement_data <- improvement_data %>%
+  mutate(Improvement = as.numeric(Post_Percent) - as.numeric(Pre_Percent)) %>%
+  select(Semester, Class, Improvement) %>%
+  drop_na()
+
+# Convert Semester into an ordered factor to control display order
+improvement_data$Semester <- factor(improvement_data$Semester, levels = c("Spring 2023", "Fall 2023"))
+
+# Plot the overall improvement, faceted by Class (K-2 and 3-5)
+ggplot(improvement_data, aes(x = Semester, y = Improvement, fill = Semester)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(alpha = 0.3, width = 0.2) +
+  facet_wrap(~ Class) +
+  labs(
+    title = "Overall Improvement from Pre to Post Test by Semester and Class",
+    x = "Semester",
+    y = "Improvement (%)"
+  ) +
+  theme(legend.position = "none")
+
+# Save the plot
+ggsave("../outputs/faceted_pre_post_test_improvement.png", width = 7.29, height = 4.5, dpi = 300)
+
+
+```
+
+```{r}
+
+library(tidyverse)
+library(lubridate)
+library(gt)
+
+# Load and rename columns
+data_raw <- read_csv("../data/Combined_Speaker_Surveys.csv", show_col_types = FALSE)
+
+colnames(data_raw) <- c(
+  "Timestamp", "Name", "Subject", "Speaker_Before", "Overall_Rating",
+  "Inspire_Info", "Hands_On_Activities", "Background_Knowledge",
+  "Engagement_Enjoyment", "Staff_Helpfulness", "Went_Well", "Went_Not_Well",
+  "Speaker_Quote", "Future_Suggestions", "Email"
+)
+
+# Clean and tag by time period
+data <- data_raw %>%
+  mutate(
+    Timestamp = parse_date_time(Timestamp, orders = c("mdy HMS", "ymd HMS", "mdy HM", "ymd HM", "Ymd HMS", "Ymd HM", "Ymd IMp")),
+    Period = if_else(Timestamp < ymd("2023-08-01"), "Before", "After"),
+    Background_Knowledge = as.numeric(Background_Knowledge) * 2,
+    Engagement_Enjoyment = Engagement_Enjoyment * 2,
+    Staff_Helpfulness = Staff_Helpfulness * 2
+  )
+
+# Summarize responses
+summary_table <- data %>%
+  select(Period, Overall_Rating, Background_Knowledge, Engagement_Enjoyment, Staff_Helpfulness) %>%
+  pivot_longer(-Period, names_to = "Question", values_to = "Response") %>%
+  group_by(Period, Question) %>%
+  summarize(
+    Mean = round(mean(Response, na.rm = TRUE), 2),
+    SD = round(sd(Response, na.rm = TRUE), 2),
+    n = sum(!is.na(Response)),
+    .groups = "drop"
+  )
+
+# Pivot wider for final output
+summary_table_wide <- summary_table %>%
+  pivot_wider(names_from = Period, values_from = c(Mean, SD, n))
+
+# Display as gt table
+summary_table_wide %>%
+  gt() %>%
+  tab_header(
+    title = "Lesson Ratings by Period",
+    subtitle = "Comparison Before and After Fall 2023"
+  ) %>%
+  fmt_number(columns = where(is.numeric), decimals = 2) %>%
+  tab_footnote(
+    footnote = "All values scaled to a max of 10. Includes only numeric feedback questions.",
+    locations = cells_column_labels(columns = everything())
+  )
+
+
+summary_table_wide
+
+# Drop NAs before running t-test
+before <- na.omit(data$Background_Knowledge[data$Period == "Before"])
+after <- na.omit(data$Background_Knowledge[data$Period == "After"])
+
+# Run t-test
+t_test_result <- t.test(before, after, paired = FALSE, var.equal = TRUE)
+print(t_test_result)
+
+# Make sure 'Period' is a factor with correct order
+data$Period <- factor(data$Period, levels = c("Before", "After"))
+
+# Boxplot
+ggplot(data, aes(x = Period, y = Background_Knowledge, fill = Period)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.2, alpha = 0.3) +
+  labs(
+    title = "Background Knowledge Ratings Before vs. After Fall 2023",
+    x = "Period",
+    y = "Rating (Scaled 1–10)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  ylim(0, 10)
+
+
+# Save the plot
+ggsave("../outputs/background_knowledge_comparison.png", width = 7, height = 4.5, dpi = 300)
+
+
+
+
+
+```
+
+```{r}
+
+# Subset and drop NA values
+before <- data %>%
+  dplyr::filter(Period == "Before") %>%
+  pull(Background_Knowledge) %>%
+  na.omit()
+
+after <- data %>%
+  dplyr::filter(Period == "After") %>%
+  pull(Background_Knowledge) %>%
+  na.omit()
+
+# Check sample sizes first
+cat("n Before:", length(before), "\n")
+cat("n After:", length(after), "\n")
 
 ```
