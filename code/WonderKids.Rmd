@@ -247,6 +247,10 @@ if ("Test_Pre" %in% colnames(fall_2023_wide) & "Test_Post" %in% colnames(fall_20
   print("Error: Pre-Test or Post-Test columns are missing. Check pivot_wider().")
 }
 
+# Ensure proper order for Test_Type and Class
+fall_2023_data$Test_Type <- factor(fall_2023_data$Test_Type, levels = c("Pre-Test", "Post-Test"))
+fall_2023_data$Class <- factor(fall_2023_data$Class, levels = c("K-2", "3-5"))
+
 # Plot the data
 ggplot(fall_2023_data, aes(x = Test_Type, y = Percent, fill = Test_Type)) +
   geom_boxplot(outlier.shape = NA) +
@@ -262,8 +266,6 @@ ggplot(fall_2023_data, aes(x = Test_Type, y = Percent, fill = Test_Type)) +
     axis.text.x = element_text(angle = 45, hjust = 1)
   )
 
-# Save the plot
-ggsave("../outputs/fall_2023_pre_post_test_comparison.png", width = 7.29, height = 4.5, dpi = 300)
 
 
 
@@ -311,7 +313,7 @@ ggplot(data_k5, aes(x = Test_Type, y = Percent, fill = Test_Type)) +
   geom_boxplot(outlier.shape = NA) +
   geom_jitter(alpha = 0.3, width = 0.2) +
   labs(
-    title = "Pre-Test vs. Post-Test Percentages (K-5, Fall 2023)",
+    title = "Pre-Test vs. Post-Test Percentages (K-5 aggregated, Fall 2023)",
     x = "",
     y = "Percent (%)"
   ) +
