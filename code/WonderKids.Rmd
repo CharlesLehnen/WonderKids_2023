@@ -482,6 +482,51 @@ ggsave("../outputs/favorite_topics_k5.png", width = 8, height = 6, dpi = 300)
 ```{r}
 
 # Load the dataset
+data <- read_csv("../data/favorite_topics_fall_2023.csv", show_col_types = FALSE)
+
+# Compute percentages for the donut chart
+data <- data %>%
+  mutate(
+    Fraction = Votes / sum(Votes),
+    ymax = cumsum(Fraction),
+    ymin = c(0, head(ymax, -1)),
+    LabelPosition = (ymax + ymin) / 2,
+    Label = paste0(str_wrap(Topic, width = 12), "\n", round(Fraction * 100, 1), "%")  # Wrapped text
+  )
+
+# Chi-squared goodness-of-fit test
+# Null hypothesis: all topics are equally preferred
+expected_votes <- rep(sum(data$Votes) / nrow(data), nrow(data))
+chisq_test <- chisq.test(data$Votes, p = rep(1 / nrow(data), nrow(data)))
+
+# Print Chi-squared test results
+print("Chi-Squared Test for Favorite Topics:")
+print(chisq_test)
+
+# Plot the donut chart
+ggplot(data, aes(ymax = ymax, ymin = ymin, xmax = 4, xmin = 3, fill = Topic)) +
+  geom_rect(color = "white") +
+  geom_text(aes(x = 3.5, y = LabelPosition, label = str_wrap(Label, width = 10)), 
+            size = 3) + 
+  scale_fill_manual(values = wes_palette("Darjeeling1", n = nrow(data), type = "continuous")) +
+  coord_polar(theta = "y") +
+  xlim(c(2, 4)) +
+  theme_void() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(size = 14, hjust = 0.5)
+  ) +
+  labs(title = "Favorite Topics for K-5")
+
+# Save the plot
+ggsave("../outputs/favorite_topics_k5.png", width = 8, height = 6, dpi = 300)
+
+
+```
+
+```{r}
+
+# Load the dataset
 attendance <- read_csv("../data/fall_2023_attendance.csv", show_col_types = FALSE)
 
 # Calculate percentage attendance
