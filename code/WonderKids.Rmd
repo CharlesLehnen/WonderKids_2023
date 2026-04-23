@@ -261,11 +261,11 @@ ggplot(fall_2023_data, aes(x = Test_Type, y = Percent, fill = Test_Type)) +
     x = "",
     y = "Percent (%)"
   ) +
+  scale_fill_manual(values = c("Pre-Test" = "#E69F00", "Post-Test" = "#56B4E9")) +  # Okabe-Ito colors
   theme(
     legend.position = "none",
     axis.text.x = element_text(angle = 45, hjust = 1)
   )
-
 
 
 
@@ -317,6 +317,7 @@ ggplot(data_k5, aes(x = Test_Type, y = Percent, fill = Test_Type)) +
     x = "",
     y = "Percent (%)"
   ) +
+  scale_fill_manual(values = c("Pre-Test" = "#E69F00", "Post-Test" = "#56B4E9")) +  # Okabe-Ito colors
   theme(
     legend.position = "none",
     axis.text.x = element_text(angle = 45, hjust = 1)
@@ -324,8 +325,6 @@ ggplot(data_k5, aes(x = Test_Type, y = Percent, fill = Test_Type)) +
 
 # Save the plot
 ggsave("../outputs/k5_pre_post_test_comparison.png", width = 7.29, height = 4.5, dpi = 300)
-
-
 
 
 ```
@@ -375,7 +374,6 @@ ggsave("../outputs/faceted_pre_post_test_improvement.png", width = 7.29, height 
 ```
 
 ```{r}
-
 # Load the dataset
 data <- read_csv("../data/favorite_activities_fall_2023.csv", show_col_types = FALSE)
 
@@ -384,19 +382,37 @@ data_summary <- data %>%
   group_by(Activity, Topic) %>%
   summarize(
     Total_Votes = sum(Votes, na.rm = TRUE),
-    SD_Votes = sd(Votes, na.rm = TRUE),  # Standard deviation for error bars
+    SD_Votes = sd(Votes, na.rm = TRUE),
     .groups = "drop"
   ) %>%
-  mutate(Percent_Votes = (Total_Votes / sum(Total_Votes)) * 100,
-         SD_Percent = (SD_Votes / sum(Total_Votes)) * 100)  # Convert to percentage
+  mutate(
+    Percent_Votes = (Total_Votes / sum(Total_Votes)) * 100,
+    SD_Percent = (SD_Votes / sum(Total_Votes)) * 100
+  )
 
-# Define color palette based on topics
-topic_colors <- wes_palette("Darjeeling1", n = length(unique(data_summary$Topic)), type = "continuous")
+data_summary
 
-# Create the bar plot with colors by topic & error bars extending only to the right
+# Table output
+
+table_export <- data_summary %>%
+  arrange(desc(Percent_Votes)) %>%
+  mutate(
+    Percent_Votes = round(Percent_Votes, 2),
+    SD_Percent = round(SD_Percent, 2)
+  ) %>%
+  select(Activity, Topic, Total_Votes, Percent_Votes, SD_Percent)
+
+# Print to console in clean format
+print(table_export)
+
+# Define Okabe-Ito color palette based on topics
+topic_colors <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442",
+                  "#0072B2", "#D55E00", "#CC79A7", "#999999")
+
+# Create the bar plot
 ggplot(data_summary, aes(x = reorder(Activity, Percent_Votes), y = Percent_Votes, fill = Topic)) +
   geom_bar(stat = "identity", width = 0.7) +
-  geom_errorbar(aes(ymin = Percent_Votes, ymax = Percent_Votes + SD_Percent), width = 0.2) +  # Error bars extend only to the right
+  geom_errorbar(aes(ymin = Percent_Votes, ymax = Percent_Votes + SD_Percent), width = 0.2) +
   coord_flip() +
   scale_fill_manual(values = topic_colors) +
   labs(
@@ -405,12 +421,12 @@ ggplot(data_summary, aes(x = reorder(Activity, Percent_Votes), y = Percent_Votes
     y = "Percentage of Total Votes"
   ) +
   theme_minimal() +
-  theme(legend.position = "none")  # Remove legend
+  theme(legend.position = "none")
 
-# Save the plot
+# Save plot
 ggsave("../outputs/favorite_activities_by_topic_k5.png", width = 8, height = 6, dpi = 300)
 
-    
+
 
 
 ```
@@ -436,6 +452,12 @@ plot(tukey_result)
 ```{r}
 
 
+# Load the dataset data <- read_csv("../data/favorite_topics_fall_2023.csv", show_col_types = FALSE) # Compute percentages for the donut chart data <- data %>% mutate( Fraction = Votes / sum(Votes), ymax = cumsum(Fraction), ymin = c(0, head(ymax, -1)), LabelPosition = (ymax + ymin) / 2, Label = paste0(str_wrap(Topic, width = 12), "\n", round(Fraction * 100, 1), "%") # Wrapped text ) # ANOVA test to compare votes across topics anova_results <- aov(Votes ~ Topic, data = data) anova_summary <- summary(anova_results) # Print ANOVA results print("ANOVA Results for Favorite Topics:") print(anova_summary) # Plot the donut chart ggplot(data, aes(ymax = ymax, ymin = ymin, xmax = 4, xmin = 3, fill = Topic)) + geom_rect(color = "white") + geom_text(aes(x = 3.5, y = LabelPosition, label = str_wrap(Label, width = 10)), size = 3) + scale_fill_manual(values = wes_palette("Darjeeling1", n = nrow(data), type = "continuous")) + # Chosen bc Darjeeling1 is colorblind friendly coord_polar(theta = "y") + xlim(c(2, 4)) + # Controls thickness of the donut theme_void() + theme( legend.position = "none", plot.title = element_text(size = 14, hjust = 0.5) ) + labs(title = "Favorite Topics for K-5") # Save the plot ggsave("../outputs/favorite_topics_k5.png", width = 8, height = 6, dpi = 300)
+
+```
+
+```{r}
+
 # Load the dataset
 data <- read_csv("../data/favorite_topics_fall_2023.csv", show_col_types = FALSE)
 
@@ -457,60 +479,25 @@ anova_summary <- summary(anova_results)
 print("ANOVA Results for Favorite Topics:")
 print(anova_summary)
 
+# Define Okabe-Ito palette
+okabe_ito_colors <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442",
+                      "#0072B2", "#D55E00", "#CC79A7", "#999999")
+
 # Plot the donut chart
 ggplot(data, aes(ymax = ymax, ymin = ymin, xmax = 4, xmin = 3, fill = Topic)) +
   geom_rect(color = "white") +
-  geom_text(aes(x = 3.5, y = LabelPosition, label = str_wrap(Label, width = 10)), 
-            size = 3) + 
-  scale_fill_manual(values = wes_palette("Darjeeling1", n = nrow(data), type = "continuous")) + # Chosen bc Darjeeling1 is colorblind friendly
+  geom_text(
+    aes(
+      x = 3.5,
+      y = LabelPosition,
+      label = str_wrap(Label, width = 10)
+    ),
+    size = 3,
+    family = "serif"
+  ) + 
+  scale_fill_manual(values = okabe_ito_colors) +
   coord_polar(theta = "y") +
   xlim(c(2, 4)) +  # Controls thickness of the donut
-  theme_void() +
-  theme(
-    legend.position = "none",
-    plot.title = element_text(size = 14, hjust = 0.5)
-  ) +
-  labs(title = "Favorite Topics for K-5")
-
-# Save the plot
-ggsave("../outputs/favorite_topics_k5.png", width = 8, height = 6, dpi = 300)
-
-
-
-```
-
-```{r}
-
-# Load the dataset
-data <- read_csv("../data/favorite_topics_fall_2023.csv", show_col_types = FALSE)
-
-# Compute percentages for the donut chart
-data <- data %>%
-  mutate(
-    Fraction = Votes / sum(Votes),
-    ymax = cumsum(Fraction),
-    ymin = c(0, head(ymax, -1)),
-    LabelPosition = (ymax + ymin) / 2,
-    Label = paste0(str_wrap(Topic, width = 12), "\n", round(Fraction * 100, 1), "%")  # Wrapped text
-  )
-
-# Chi-squared goodness-of-fit test
-# Null hypothesis: all topics are equally preferred
-expected_votes <- rep(sum(data$Votes) / nrow(data), nrow(data))
-chisq_test <- chisq.test(data$Votes, p = rep(1 / nrow(data), nrow(data)))
-
-# Print Chi-squared test results
-print("Chi-Squared Test for Favorite Topics:")
-print(chisq_test)
-
-# Plot the donut chart
-ggplot(data, aes(ymax = ymax, ymin = ymin, xmax = 4, xmin = 3, fill = Topic)) +
-  geom_rect(color = "white") +
-  geom_text(aes(x = 3.5, y = LabelPosition, label = str_wrap(Label, width = 10)), 
-            size = 3) + 
-  scale_fill_manual(values = wes_palette("Darjeeling1", n = nrow(data), type = "continuous")) +
-  coord_polar(theta = "y") +
-  xlim(c(2, 4)) +
   theme_void() +
   theme(
     legend.position = "none",
@@ -618,10 +605,63 @@ attendance_table <- attendance_summary %>%
 # Print the table
 attendance_table
 
+```
 
+```{r}
 
+library(tidyverse)
+library(lubridate)
+
+attendance <- read_csv("../data/attendance_full.csv", show_col_types = FALSE)
+
+# --------------------------------------------------
+# 1. Wide → long (select date cols explicitly by pattern)
+# --------------------------------------------------
+attendance_long <- attendance %>%
+  select(Grade, Student, matches("^\\d+/\\d+$")) %>%  # keep only m/d cols
+  pivot_longer(
+    cols      = -c(Grade, Student),
+    names_to  = "Date",
+    values_to = "Present"
+  ) %>%
+  mutate(
+    Date = mdy(paste0(Date, "/2023")),
+    Week = floor_date(Date, "week"),
+    Day  = if_else(wday(Date) < 4, "Day 1", "Day 2")
+  )
+
+# --------------------------------------------------
+# 2. Grade grouping
+# --------------------------------------------------
+attendance_long <- attendance_long %>%
+  mutate(
+    Grade_Group = case_when(
+      Grade %in% c("Kindergarten", "1st", "2nd") ~ "K-2",
+      Grade %in% c("3rd", "4th", "5th")          ~ "3-5",
+      TRUE                                         ~ "Other"
+    )
+  )
+
+# --------------------------------------------------
+# 3. Summary table
+# --------------------------------------------------
+attendance_summary_table <- attendance_long %>%
+  group_by(Week, Day, Grade_Group) %>%
+  summarize(
+    Students_Present = sum(Present, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  pivot_wider(
+    names_from  = Grade_Group,
+    values_from = Students_Present
+  ) %>%
+  arrange(Week, Day)
+
+print(attendance_summary_table)
 
 ```
+
+
 
 ```{r}
 
