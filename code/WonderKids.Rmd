@@ -1,4 +1,10 @@
+# Analysis for publication "Zooming into STEM: Designing Curriculum Around Guest Presentations in an Online After-School STEM Program for Title I Elementary Students"
+
+## Set-up
+
 ```{r}
+
+# Clear environment
 
 rm(list = ls())
 
@@ -6,8 +12,8 @@ rm(list = ls())
 
 ```{r}
 
-library(dplyr)
-library(ggplot2)
+# Load necessary libraries
+
 library(readr)
 library(tidyr)
 library(tm)
@@ -19,57 +25,217 @@ library(readr)
 library(gt)
 library(conflicted)
 
-```
-
-```{r}
-
-data_raw <- read_csv(file = "../data/2023_Fall_Speaker_Survey.csv")
-
-head(data_raw)
+library(dplyr)
+library(ggplot2)
 
 ```
 
+## Speaker survey analyses
+
 ```{r}
 
+# Load data
 
-# Create a lookup table for the original column names and their shortened names
+speaker_survey_2023_2025_raw <- read_csv(file = "../data/Speaker_Surveys_2021-2024.csv")
+
+head(speaker_survey_2023_2025_raw)
+
+
+```
+
+### Data cleaning
+
+```{r}
+
+speaker_survey_2023f_raw <- speaker_survey_2023_2025_raw %>%
+  mutate(Timestamp = mdy_hms(Timestamp)) %>%
+  dplyr::filter(Semester == "Fall_2023")
+
+
+# Create a lookup table to convert original column names (survey questions) to their shortened names
 question_lookup <- data.frame(
-  Original_Column = colnames(data_raw),
+  Original_Column = colnames(speaker_survey_2023f_raw),
   Shortened_Column = c(
-    "Timestamp",                # 1
-    "Name",                     # 2
-    "Subject",                  # 3
-    "Speaker_Before",           # 4
-    "Overall_Rating",           # 5
-    "Inspire_Info",             # 6
-    "Hands_On_Activities",      # 7
-    "Background_Knowledge",     # 8
-    "Engagement_Enjoyment",     # 9
-    "Staff_Helpfulness",        # 10
-    "Went_Well",                # 11
-    "Went_Not_Well",            # 12
-    "Speaker_Quote",            # 13
-    "Future_Suggestions",       # 14
-    "Email"                     # 15
+    "Semester",
+    "Timestamp",                
+    "End_Timestamp",            
+    "Response_ID",              
+    "Name",                     
+    "Subject",                  
+    "Speaker_Before",           
+    "Overall_Rating",           
+    "Inspire_Info",             
+    "Hands_On_Activities",      
+    "Background_Knowledge",     
+    "Engagement_Enjoyment",     
+    "Staff_Helpfulness",        
+    "Went_Well",                
+    "Went_Not_Well",            
+    "Speaker_Quote",            
+    "Future_Suggestions",
+    "Anything_Else"                     
   )
 )
 
-# Rename columns in the data to use the shortened names
-data <- data_raw %>%
+speaker_survey_2023_2025_raw <- speaker_survey_2023_2025_raw %>%
   rename_with(~ question_lookup$Shortened_Column[match(., question_lookup$Original_Column)])
 
-# Check the transformed data
-head(data)
+
+speaker_survey_2023f_clean <- speaker_survey_2023f_raw %>%
+  rename_with(~ question_lookup$Shortened_Column[match(., question_lookup$Original_Column)])
+
+head(speaker_survey_2023f_clean)
 
 
 ```
 
 ```{r}
 
-# Word Cloud
+# Summary table of speaker survey results
 
-# Reference relevant columns
-relevant_columns <- data[, c(6, 7, 11, 13)] 
+scale_cols <- c("Background_Knowledge", "Engagement_Enjoyment", "Staff_Helpfulness")
+
+speaker_survey_2023f_clean %>%
+  mutate(across(all_of(c("Overall_Rating", scale_cols)), as.numeric)) %>%
+  mutate(across(all_of(scale_cols), ~ . * 2)) %>%
+  select(Overall_Rating, all_of(scale_cols)) %>%
+  pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
+  group_by(Question) %>%
+  summarize(Mean = mean(Response, na.rm = TRUE),
+            SD   = sd(Response, na.rm = TRUE),
+            n    = n(), .groups = "drop") %>%
+  gt() %>%
+  tab_header(title = "Lesson Ratings by Question",
+             subtitle = "Fall 2023 Speaker Feedback") %>%
+  cols_label(Question = "Survey Question",
+             Mean = "Mean", SD = "Std Dev", n = "n") %>%
+  fmt_number(columns = c(Mean, SD), decimals = 2) %>%
+  tab_footnote("Scaled to max 10.",
+               locations = cells_column_labels(c(Mean, SD)))
+
+
+
+```
+
+### Comparing speaker surveys across semesters
+
+#### Box-and-whisker plots
+
+```{r}
+
+# Clean data
+speaker_ratings_long <- speaker_survey_2023_2025_raw %>%
+  dplyr::filter(Semester %in% c("Spring_2021", "Spring_2022", "Fall_2023")) %>%
+  mutate(across(all_of(scale_cols), as.numeric),
+         across(all_of(scale_cols), ~ . * 2),
+         Semester = factor(Semester, levels = c("Spring_2021", "Spring_2022", "Fall_2023", "Spring_2024"))) %>%
+  select(Semester, all_of(scale_cols)) %>%
+  pivot_longer(cols = all_of(scale_cols), names_to = "Metric", values_to = "Rating") %>%
+  drop_na()
+
+
+n_labels_ratings <- speaker_ratings_long %>%
+  group_by(Semester, Metric) %>%
+  summarize(label = paste0("n = ", n()), .groups = "drop")
+
+# Set colors
+okabe_ito <- palette.colors(palette = "Okabe-Ito")
+semester_colors <- c(
+  "Spring_2021" = okabe_ito[2],
+  "Spring_2022" = okabe_ito[3],
+  "Fall_2023"   = okabe_ito[4],
+  "Spring_2024" = okabe_ito[5]
+)
+
+
+# Plot
+ggplot(speaker_ratings_long, aes(x = Semester, y = Rating, fill = Semester)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(alpha = 0.3, width = 0.2) +
+  geom_text(data = n_labels_ratings, aes(x = Semester, y = -Inf, label = label),
+            vjust = -0.5, size = 3, inherit.aes = FALSE) +
+  facet_wrap(~ Metric, labeller = as_labeller(c(
+    Background_Knowledge = "Background Knowledge",
+    Engagement_Enjoyment = "Engagement & Enjoyment",
+    Staff_Helpfulness    = "Staff Helpfulness"
+  ))) +
+  scale_fill_manual(values = semester_colors) +
+  scale_x_discrete(labels = c("Spring_2021" = "Spring 2021",
+                               "Spring_2022" = "Spring 2022",
+                               "Fall_2023"   = "Fall 2023",
+                               "Spring_2024" = "Spring 2024")) +
+  ylim(5, 10) +
+  labs(title = "Speaker Ratings by Semester",
+       x = "", y = "Rating (out of 10)") +
+  theme_bw() +
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggsave("../outputs/speaker_ratings_by_semester.png", width = 10, height = 5, dpi = 300)
+
+```
+
+### T-test speaker surveys across semesters
+
+```{r}
+
+# Create era grouping: 2021/2022 vs 2023
+speaker_ratings_wide <- speaker_survey_2023_2025_raw %>%
+  dplyr::filter(Semester %in% c("Spring_2021", "Spring_2022", "Fall_2023")) %>%
+  mutate(across(all_of(scale_cols), as.numeric),
+         across(all_of(scale_cols), ~ . * 2),
+         time_period = if_else(Semester %in% c("Spring_2021", "Spring_2022"), "2021-2022", "2023"))
+
+# Background Knowledge
+before_bg <- speaker_ratings_wide %>% 
+  dplyr::filter(time_period == "2021-2022") %>% 
+  pull(Background_Knowledge)
+
+after_bg  <- speaker_ratings_wide %>% 
+  dplyr::filter(time_period == "2023") %>% 
+  pull(Background_Knowledge)
+
+t.test(before_bg, after_bg, paired = FALSE)
+
+
+# Engagement & Enjoyment
+before_ee <- speaker_ratings_wide %>% 
+  dplyr::filter(time_period == "2021-2022") %>% 
+  pull(Engagement_Enjoyment)
+
+after_ee  <- speaker_ratings_wide %>% 
+  dplyr::filter(time_period == "2023") %>% 
+  pull(Engagement_Enjoyment)
+
+t.test(before_ee, after_ee, paired = FALSE)
+
+
+# Staff Helpfulness
+before_sh <- speaker_ratings_wide %>% 
+  dplyr::filter(time_period == "2021-2022") %>% 
+  pull(Staff_Helpfulness)
+
+after_sh  <- speaker_ratings_wide %>% 
+  dplyr::filter(time_period == "2023") %>% 
+  pull(Staff_Helpfulness)
+
+t.test(before_sh, after_sh, paired = FALSE)
+
+
+
+sum(!is.na(before_bg))
+sum(!is.na(after_bg))
+
+```
+
+### Speaker comments word cloud
+
+```{r}
+
+# Speaker Survey open-ended questions word cloud
+
+relevant_columns <- speaker_survey_2023f_clean %>%
+  select(Inspire_Info, Hands_On_Activities, Went_Well, Went_Not_Well, Speaker_Quote, Future_Suggestions)
 
 # Combine text data from the relevant columns
 text_data <- apply(relevant_columns, 1, paste, collapse = " ")
@@ -84,10 +250,10 @@ custom_stopwords <- c("andrea", "charles")
 all_stopwords <- c(stopwords("english"), custom_stopwords)
 
 # Preprocess the text data
-corpus <- tm_map(corpus, content_transformer(tolower))  # Convert to lowercase
-corpus <- tm_map(corpus, removePunctuation)            # Remove punctuation
-corpus <- tm_map(corpus, removeNumbers)                # Remove numbers
-corpus <- tm_map(corpus, removeWords, all_stopwords)   # Remove common + custom stopwords
+corpus <- tm_map(corpus, content_transformer(tolower))  
+corpus <- tm_map(corpus, removePunctuation)            
+corpus <- tm_map(corpus, removeNumbers)               
+corpus <- tm_map(corpus, removeWords, all_stopwords) 
 
 # Create a Term Document Matrix
 tdm <- TermDocumentMatrix(corpus)
@@ -97,93 +263,37 @@ m <- as.matrix(tdm)
 word_freq <- sort(rowSums(m), decreasing = TRUE)
 word_freq_df <- data.frame(word = names(word_freq), freq = word_freq)
 
-# Create the Word Cloud using ggwordcloud
+# Plot
 ggplot(word_freq_df, aes(label = word, size = freq)) +
   geom_text_wordcloud() +
   labs(title = "Word Cloud of Speaker Feedback") +
   theme_minimal()
 
-# Save the Word Cloud
 ggsave("../outputs/word_cloud.png", width = 8, height = 6)
 
 
 
 ```
 
+# Pre- and post-test analyses
+
+## Set-up
+
 ```{r}
 
-
-# Scale responses for comparability
-data <- data %>%
-  mutate(
-    Background_Knowledge = Background_Knowledge * 2,
-    Engagement_Enjoyment = Engagement_Enjoyment * 2,
-    Staff_Helpfulness = Staff_Helpfulness * 2
-  )
-
-# Calculate summary statistics
-summary_table <- data %>%
-  select(Overall_Rating, Background_Knowledge, Engagement_Enjoyment, Staff_Helpfulness) %>%
-  pivot_longer(cols = everything(), names_to = "Question", values_to = "Response") %>%
-  group_by(Question) %>%
-  summarize(
-    Mean = mean(Response, na.rm = TRUE),
-    SD = sd(Response, na.rm = TRUE),
-    n = n(),
-    .groups = "drop"
-  )
-
-# Create a formatted table using gt
-formatted_table <- summary_table %>%
-  gt() %>%
-  tab_header(
-    title = "Lesson Ratings by Question",
-    subtitle = "Fall 2023 Speaker Feedback"
-  ) %>%
-  cols_label(
-    Question = "Survey Question",
-    Mean = "Mean Response",
-    SD = "Standard Deviation",
-    n = "Sample Size (n)"
-  ) %>%
-  tab_spanner(
-    label = "Response Summary",
-    columns = c(Mean, SD, n)
-  ) %>%
-  fmt_number(
-    columns = c(Mean, SD),
-    decimals = 2
-  ) %>%
-  tab_footnote(
-    footnote = "Mean and Standard Deviation calculated from speaker feedback responses. Scaled to a maximum of 10.",
-    locations = cells_column_labels(columns = c(Mean, SD))
-  ) %>%
-  tab_style(
-    style = cell_text(weight = "bold"),
-    locations = cells_column_spanners()
-  ) %>%
-  tab_options(
-    table.font.size = 12,
-    column_labels.font.size = 14
-  )
-
-# Print the table
-formatted_table
-
-
+# Load the dataset
+pre_post_test_df_raw <- read_csv("../data/pre_post_test_scores_spring_2023_fall_2023.csv", show_col_types = FALSE)
 
 ```
 
+## Clean
+
 ```{r}
 
-# Load necessary libraries
-library(tidyverse)
-
-# Load the dataset
-data <- read_csv("../data/pre_post_test_scores_spring_2023_fall_2023.csv", show_col_types = FALSE)
+# Clean data
 
 # Rename columns for clarity
-data <- data %>%
+pre_post_test_df_clean <- pre_post_test_df_raw %>%
   rename(
     Semester = `Semester`,
     Test_Type = `Test Type`,
@@ -194,11 +304,13 @@ data <- data %>%
     Percent = `%`
   )
 
+
 # Convert "N/A" to NA
-data[data == "N/A"] <- NA
+pre_post_test_df_clean[pre_post_test_df_clean == "N/A"] <- NA
+
 
 # Convert necessary columns to numeric
-data <- data %>%
+pre_post_test_df_clean <- pre_post_test_df_clean %>%
   mutate(
     Total_Students = as.numeric(Total_Students),
     Correct = as.numeric(Correct),
@@ -206,170 +318,194 @@ data <- data %>%
   )
 
 # Filter for Fall 2023
-fall_2023_data <- data %>% dplyr::filter(Semester == "Fall 2023")
+pre_post_test_df_fall_2023_clean <- pre_post_test_df_clean %>% dplyr::filter(Semester == "Fall 2023")
 
-# Reshape data: pivot pre-test and post-test scores into separate columns
-fall_2023_wide <- fall_2023_data %>%
+
+# Add rows
+
+pre_post_test_df_fall_2023_clean <- pre_post_test_df_fall_2023_clean %>%
+  mutate(
+    Test_Type = factor(Test_Type, levels = c("Pre-Test", "Post-Test")),
+    Class     = factor(Class,     levels = c("K-2", "3-5"))
+  )
+
+head(pre_post_test_df_fall_2023_clean)
+
+# Median by class and test type
+pre_post_test_df_fall_2023_clean %>%
+  group_by(Class, Test_Type) %>%
+  summarize(Median_Score = median(Percent, na.rm = TRUE), .groups = "drop") %>%
+  print()
+
+
+```
+
+### Fall 2023 by grade group
+
+```{r}
+
+# Reshape
+pre_post_test_df_fall_2023_clean_wide <- pre_post_test_df_fall_2023_clean %>%
   select(Semester, Class, STEM_Topic, Test_Type, Percent) %>%
   pivot_wider(names_from = Test_Type, values_from = Percent, names_prefix = "Test_") %>%
-  rename(Test_Pre = `Test_Pre-Test`, Test_Post = `Test_Post-Test`) %>% # Rename problematic columns
-  drop_na()  # Remove any rows with NA values
+  rename(Test_Pre = `Test_Pre-Test`, Test_Post = `Test_Post-Test`) %>% 
+  drop_na() 
 
-# Check column names to ensure correct pivoting
-print("Column names after pivoting:")
-print(colnames(fall_2023_wide))
 
-# Print **median** values for each test type
-median_values <- fall_2023_data %>%
-  group_by(Class, Test_Type) %>%
-  summarize(Median_Score = median(Percent, na.rm = TRUE), .groups = "drop")
+head(pre_post_test_df_fall_2023_clean_wide)
 
-print("Median Values for Pre-Test and Post-Test:")
-print(median_values)
 
-# Perform paired t-tests for K-2 and 3-5
-if ("Test_Pre" %in% colnames(fall_2023_wide) & "Test_Post" %in% colnames(fall_2023_wide)) {
-  t_test_k2 <- t.test(fall_2023_wide$Test_Pre[fall_2023_wide$Class == "K-2"],
-                      fall_2023_wide$Test_Post[fall_2023_wide$Class == "K-2"],
-                      paired = TRUE, na.action = na.omit)
+# Unpaired t-tests (as described in write-up)
+k2_data <- pre_post_test_df_fall_2023_clean_wide %>% dplyr::filter(Class == "K-2")
 
-  t_test_35 <- t.test(fall_2023_wide$Test_Pre[fall_2023_wide$Class == "3-5"],
-                      fall_2023_wide$Test_Post[fall_2023_wide$Class == "3-5"],
-                      paired = TRUE, na.action = na.omit)
+t.test(k2_data$Test_Pre, k2_data$Test_Post, paired = FALSE)
 
-  # Print t-test results
-  print("T-Test Results for K-2:")
-  print(t_test_k2)
+grades35_data <- pre_post_test_df_fall_2023_clean_wide %>% dplyr::filter(Class == "3-5")
 
-  print("T-Test Results for 3-5:")
-  print(t_test_35)
-} else {
-  print("Error: Pre-Test or Post-Test columns are missing. Check pivot_wider().")
-}
+t.test(grades35_data$Test_Pre, grades35_data$Test_Post, paired = FALSE)
 
-# Ensure proper order for Test_Type and Class
-fall_2023_data$Test_Type <- factor(fall_2023_data$Test_Type, levels = c("Pre-Test", "Post-Test"))
-fall_2023_data$Class <- factor(fall_2023_data$Class, levels = c("K-2", "3-5"))
 
-# Plot the data
-ggplot(fall_2023_data, aes(x = Test_Type, y = Percent, fill = Test_Type)) +
+# Visual deficiency friendly pallette
+okabe_ito <- palette.colors(palette = "Okabe-Ito")
+test_colors <- c("Pre-Test" = okabe_ito[2], "Post-Test" = okabe_ito[3])
+
+
+# Plot
+ggplot(pre_post_test_df_fall_2023_clean, aes(x = Test_Type, y = Percent, fill = Test_Type)) +
   geom_boxplot(outlier.shape = NA) +
   geom_jitter(alpha = 0.3, width = 0.2) +
   facet_wrap(~ Class) +
-  labs(
-    title = "Pre-Test vs. Post-Test Percentages (Fall 2023)",
-    x = "",
-    y = "Percent (%)"
-  ) +
-  scale_fill_manual(values = c("Pre-Test" = "#E69F00", "Post-Test" = "#56B4E9")) +  # Okabe-Ito colors
-  theme(
-    legend.position = "none",
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  )
+  scale_fill_manual(values = test_colors) +
+  labs(title = "Pre-Test vs. Post-Test Percentages (Fall 2023)", x = "", y = "Percent (%)") +
+  ylim(0,100) +
+  theme_bw() +
+  theme(legend.position = "none", axis.text.x = element_text(angle = 45, hjust = 1))
+
 
 
 
 ```
 
+### Fall 2023
+
 ```{r}
 
-# Combine K-5 by removing Class column
-data_k5 <- data %>%
-  dplyr::filter(Semester == "Fall 2023") %>%  # Ensure we're analyzing Fall 2023
+# Aggregate K-5 together
+pre_post_test_df_fall_2023_k_5_clean <- pre_post_test_df_fall_2023_clean %>%
   select(Test_Type, Percent) %>%
   mutate(Test_Type = factor(Test_Type, levels = c("Pre-Test", "Post-Test")))
 
-# Compute median values for each test type
-median_values <- data_k5 %>%
+# Median by test type
+pre_post_test_df_fall_2023_k_5_clean %>%
   group_by(Test_Type) %>%
-  summarize(Median_Score = median(Percent, na.rm = TRUE), .groups = "drop")
+  summarize(Median_Score = median(Percent, na.rm = TRUE), .groups = "drop") %>%
+  print()
 
-# Print median values
-print("Median Values for Pre-Test and Post-Test:")
-print(median_values)
+```
 
-# Perform Student's t-test (Unpaired Two-Sample t-test)
-pre_test_scores <- data_k5 %>% dplyr::filter(Test_Type == "Pre-Test") %>% pull(Percent)
-post_test_scores <- data_k5 %>% dplyr::filter(Test_Type == "Post-Test") %>% pull(Percent)
+```{r}
 
-t_test_results <- t.test(pre_test_scores, post_test_scores, paired = FALSE, var.equal = TRUE)
+# Unpaired t-test
+pre_scores  <- pre_post_test_df_fall_2023_k_5_clean %>% 
+  dplyr::filter(Test_Type == "Pre-Test")  %>% 
+  pull(Percent)
 
-# Print results in ANOVA-like format
-anova_format <- data.frame(
-  Source = "Test_Type",
-  DF = round(t_test_results$parameter, 2),
-  `Sum Sq` = NA,  # Not available for t-test
-  `Mean Sq` = NA, # Not available for t-test
-  F = NA,         # F-statistic not applicable for t-test
-  t = round(t_test_results$statistic, 3),   # t-statistic
-  p = round(t_test_results$p.value, 5)  # p-value
-)
+post_scores <- pre_post_test_df_fall_2023_k_5_clean %>% 
+  dplyr::filter(Test_Type == "Post-Test") %>% 
+  pull(Percent)
 
-# Print results
-print(anova_format)
+t.test(pre_scores, post_scores, paired = FALSE, var.equal = TRUE)
 
-# Plot the data (Boxplot and Jitter)
-ggplot(data_k5, aes(x = Test_Type, y = Percent, fill = Test_Type)) +
+```
+
+```{r}
+
+# Plot
+ggplot(pre_post_test_df_fall_2023_k_5_clean, aes(x = Test_Type, y = Percent, fill = Test_Type)) +
   geom_boxplot(outlier.shape = NA) +
   geom_jitter(alpha = 0.3, width = 0.2) +
-  labs(
-    title = "Pre-Test vs. Post-Test Percentages (K-5 aggregated, Fall 2023)",
-    x = "",
-    y = "Percent (%)"
-  ) +
-  scale_fill_manual(values = c("Pre-Test" = "#E69F00", "Post-Test" = "#56B4E9")) +  # Okabe-Ito colors
-  theme(
-    legend.position = "none",
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  )
+  scale_fill_manual(values = test_colors) +
+  labs(title = "Pre-Test vs. Post-Test Percentages (K-5 aggregated, Fall 2023)",
+       x = "", y = "Percent (%)") +
+  ylim(0,100) +
+  theme_bw() +
+  theme(legend.position = "none", axis.text.x = element_text(angle = 45, hjust = 1))
 
-# Save the plot
 ggsave("../outputs/k5_pre_post_test_comparison.png", width = 7.29, height = 4.5, dpi = 300)
 
 
 ```
 
+### Spring 2023 vs. Fall 2023 by grade group
+
 ```{r}
 
-# Box and Whisker Plot (Jittered)
-
-
-# Separate pre and post-tests
-pre_tests <- data %>% dplyr::filter(Test_Type == "Pre-Test")
-post_tests <- data %>% dplyr::filter(Test_Type == "Post-Test")
-
-# Join pre and post-tests
-improvement_data <- pre_tests %>%
-  rename(Pre_Total_Students = Total_Students, Pre_Correct = Correct, Pre_Percent = Percent) %>%
-  left_join(post_tests %>%
-              rename(Post_Total_Students = Total_Students, Post_Correct = Correct, Post_Percent = Percent),
-            by = c("Semester", "STEM_Topic", "Class"))
-
-# Calculate improvement and remove NA values
-improvement_data <- improvement_data %>%
-  mutate(Improvement = as.numeric(Post_Percent) - as.numeric(Pre_Percent)) %>%
-  select(Semester, Class, Improvement) %>%
+# Calculate per-topic improvement
+improvement_data <- pre_post_test_df_clean %>%
+  select(Semester, Class, STEM_Topic, Test_Type, Percent) %>%
+  pivot_wider(names_from = Test_Type, values_from = Percent) %>%
+  mutate(Improvement = `Post-Test` - `Pre-Test`,
+         Semester = factor(Semester, levels = c("Spring 2023", "Fall 2023"))) %>%
   drop_na()
 
-# Convert Semester into an ordered factor to control display order
-improvement_data$Semester <- factor(improvement_data$Semester, levels = c("Spring 2023", "Fall 2023"))
+# Compute n per Semester × Class for labels
+n_labels <- improvement_data %>%
+  group_by(Semester, Class) %>%
+  summarize(n = n(), label = paste0("n = ", n()), .groups = "drop")
 
-# Plot the overall improvement, faceted by Class (K-2 and 3-5)
+# Plot
+okabe_ito <- palette.colors(palette = "Okabe-Ito")
+semester_colors <- c("Spring 2023" = okabe_ito[2], "Fall 2023" = okabe_ito[3])
+
 ggplot(improvement_data, aes(x = Semester, y = Improvement, fill = Semester)) +
   geom_boxplot(outlier.shape = NA) +
   geom_jitter(alpha = 0.3, width = 0.2) +
+  geom_text(data = n_labels, aes(x = Semester, y = -Inf, label = label),
+            vjust = -0.5, size = 3, inherit.aes = FALSE) +
   facet_wrap(~ Class) +
-  labs(
-    title = "Overall Improvement from Pre to Post Test by Semester and Group",
-    x = "Semester",
-    y = "Improvement (%)"
-  ) +
+  scale_fill_manual(values = semester_colors) +
+  labs(title = "Pre- to Post-Test by Semester and Grade Group",
+       x = "Semester", y = "Improvement (%)") +
+  ylim(0,100) +
+  theme_bw() +
   theme(legend.position = "none")
 
-# Save the plot
 ggsave("../outputs/faceted_pre_post_test_improvement.png", width = 7.29, height = 4.5, dpi = 300)
 
 
+```
+
+### Spring 2023 vs. Fall 2023
+
+```{r}
+
+# Aggregated improvement
+improvement_data_k5 <- pre_post_test_df_clean %>%
+  select(Semester, Class, STEM_Topic, Test_Type, Percent) %>%
+  pivot_wider(names_from = Test_Type, values_from = Percent) %>%
+  mutate(Improvement = `Post-Test` - `Pre-Test`,
+         Semester = factor(Semester, levels = c("Spring 2023", "Fall 2023"))) %>%
+  drop_na()
+
+# n per Semester
+n_labels_k5 <- improvement_data_k5 %>%
+  group_by(Semester) %>%
+  summarize(label = paste0("n = ", n()), .groups = "drop")
+
+# Plot
+ggplot(improvement_data_k5, aes(x = Semester, y = Improvement, fill = Semester)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(alpha = 0.3, width = 0.2) +
+  geom_text(data = n_labels_k5, aes(x = Semester, y = -Inf, label = label),
+            vjust = -0.5, size = 3, inherit.aes = FALSE) +
+  scale_fill_manual(values = semester_colors) +
+  labs(title = "Pre- to Post-Test Improvement by Semester (K-5 Aggregated)",
+       x = "Semester", y = "Improvement (%)") +
+  ylim(0,100) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+ggsave("../outputs/k5_pre_post_test_improvement.png", width = 7.29, height = 4.5, dpi = 300)
 
 ```
 
@@ -660,8 +796,6 @@ attendance_summary_table <- attendance_long %>%
 print(attendance_summary_table)
 
 ```
-
-
 
 ```{r}
 
