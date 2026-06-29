@@ -23,10 +23,12 @@ library(wesanderson)
 library(stringr)
 library(readr)
 library(gt)
+require(webshot2) # for gt to work properly
 library(conflicted)
 
 library(dplyr)
 library(ggplot2)
+
 
 ```
 
@@ -48,7 +50,7 @@ head(speaker_survey_2023_2025_raw)
 ```{r}
 
 speaker_survey_2023f_raw <- speaker_survey_2023_2025_raw %>%
-  mutate(Timestamp = mdy_hms(Timestamp)) %>%
+  mutate(Timestamp = lubridate::mdy_hms(Timestamp)) %>%
   dplyr::filter(Semester == "Fall_2023")
 
 
@@ -91,27 +93,53 @@ head(speaker_survey_2023f_clean)
 
 ```{r}
 
-# Summary table of speaker survey results
 
-scale_cols <- c("Background_Knowledge", "Engagement_Enjoyment", "Staff_Helpfulness")
 
-speaker_survey_2023f_clean %>%
+summary_table <- speaker_survey_2023f_clean %>%
   mutate(across(all_of(c("Overall_Rating", scale_cols)), as.numeric)) %>%
   mutate(across(all_of(scale_cols), ~ . * 2)) %>%
   select(Overall_Rating, all_of(scale_cols)) %>%
   pivot_longer(everything(), names_to = "Question", values_to = "Response") %>%
   group_by(Question) %>%
-  summarize(Mean = mean(Response, na.rm = TRUE),
-            SD   = sd(Response, na.rm = TRUE),
-            n    = n(), .groups = "drop") %>%
+  summarize(
+    Mean = mean(Response, na.rm = TRUE),
+    SD   = sd(Response, na.rm = TRUE),
+    n    = n(),
+    .groups = "drop"
+  ) %>%
   gt() %>%
-  tab_header(title = "Lesson Ratings by Question",
-             subtitle = "Fall 2023 Speaker Feedback") %>%
-  cols_label(Question = "Survey Question",
-             Mean = "Mean", SD = "Std Dev", n = "n") %>%
+  tab_header(
+    title = "Lesson Ratings by Question",
+    subtitle = "Fall 2023 Speaker Feedback"
+  ) %>%
+  cols_label(
+    Question = "Survey Question",
+    Mean = "Mean",
+    SD = "Std Dev",
+    n = "n"
+  ) %>%
   fmt_number(columns = c(Mean, SD), decimals = 2) %>%
-  tab_footnote("Scaled to max 10.",
-               locations = cells_column_labels(c(Mean, SD)))
+  tab_footnote(
+    "Scaled to max 10.",
+    locations = cells_column_labels(c(Mean, SD))
+  )
+
+summary_table <- summary_table %>%
+  cols_width(
+    Question ~ px(250),
+    Mean ~ px(100),
+    SD ~ px(100),
+    n ~ px(70)
+  )
+
+summary_table
+
+
+```
+
+```{r}
+
+gtsave(summary_table, "../outputs/lesson_ratings_table.png")
 
 
 
@@ -599,6 +627,7 @@ data <- read_csv("../data/favorite_topics_fall_2023.csv", show_col_types = FALSE
 
 # Compute percentages for the donut chart
 data <- data %>%
+  arrange(Topic) %>%   # Alphabetical order
   mutate(
     Fraction = Votes / sum(Votes),
     ymax = cumsum(Fraction),
@@ -620,17 +649,19 @@ okabe_ito_colors <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442",
                       "#0072B2", "#D55E00", "#CC79A7", "#999999")
 
 # Plot the donut chart
-ggplot(data, aes(ymax = ymax, ymin = ymin, xmax = 4, xmin = 3, fill = Topic)) +
+ggplot(data, aes(ymax = ymax, ymin = ymin, xmax = 3, xmin = 2.5, fill = Topic)) +
   geom_rect(color = "white") +
   geom_text(
     aes(
-      x = 3.5,
-      y = LabelPosition,
+      x = ifelse(Topic == "Geospatial Sciences", 3.9, 3.7),
+      y = ifelse(Topic == "Geospatial Sciences",
+                 LabelPosition + 0.05,
+                 LabelPosition),
       label = str_wrap(Label, width = 10)
     ),
-    size = 3,
+    size = 7, # text size
     family = "serif"
-  ) + 
+  ) +
   scale_fill_manual(values = okabe_ito_colors) +
   coord_polar(theta = "y") +
   xlim(c(2, 4)) +  # Controls thickness of the donut
