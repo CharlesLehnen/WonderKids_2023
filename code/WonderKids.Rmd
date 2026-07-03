@@ -49,12 +49,13 @@ head(speaker_survey_2023_2025_raw)
 
 ```{r}
 
+# Convert to lubridate friendly format
 speaker_survey_2023f_raw <- speaker_survey_2023_2025_raw %>%
   mutate(Timestamp = lubridate::mdy_hms(Timestamp)) %>%
   dplyr::filter(Semester == "Fall_2023")
 
 
-# Create a lookup table to convert original column names (survey questions) to their shortened names
+# Shorten questionnaire column names
 question_lookup <- data.frame(
   Original_Column = colnames(speaker_survey_2023f_raw),
   Shortened_Column = c(
@@ -94,6 +95,9 @@ head(speaker_survey_2023f_clean)
 ```{r}
 
 
+# Generate simple statistics summary table
+
+scale_cols <- c("Background_Knowledge", "Engagement_Enjoyment", "Staff_Helpfulness")
 
 summary_table <- speaker_survey_2023f_clean %>%
   mutate(across(all_of(c("Overall_Rating", scale_cols)), as.numeric)) %>%
@@ -138,6 +142,8 @@ summary_table
 ```
 
 ```{r}
+
+# Save the summary stats table
 
 gtsave(summary_table, "../outputs/lesson_ratings_table.png")
 
@@ -613,12 +619,6 @@ plot(tukey_result)
 
 ```
 
-```{r}
-
-
-# Load the dataset data <- read_csv("../data/favorite_topics_fall_2023.csv", show_col_types = FALSE) # Compute percentages for the donut chart data <- data %>% mutate( Fraction = Votes / sum(Votes), ymax = cumsum(Fraction), ymin = c(0, head(ymax, -1)), LabelPosition = (ymax + ymin) / 2, Label = paste0(str_wrap(Topic, width = 12), "\n", round(Fraction * 100, 1), "%") # Wrapped text ) # ANOVA test to compare votes across topics anova_results <- aov(Votes ~ Topic, data = data) anova_summary <- summary(anova_results) # Print ANOVA results print("ANOVA Results for Favorite Topics:") print(anova_summary) # Plot the donut chart ggplot(data, aes(ymax = ymax, ymin = ymin, xmax = 4, xmin = 3, fill = Topic)) + geom_rect(color = "white") + geom_text(aes(x = 3.5, y = LabelPosition, label = str_wrap(Label, width = 10)), size = 3) + scale_fill_manual(values = wes_palette("Darjeeling1", n = nrow(data), type = "continuous")) + # Chosen bc Darjeeling1 is colorblind friendly coord_polar(theta = "y") + xlim(c(2, 4)) + # Controls thickness of the donut theme_void() + theme( legend.position = "none", plot.title = element_text(size = 14, hjust = 0.5) ) + labs(title = "Favorite Topics for K-5") # Save the plot ggsave("../outputs/favorite_topics_k5.png", width = 8, height = 6, dpi = 300)
-
-```
 
 ```{r}
 
@@ -672,7 +672,7 @@ ggplot(data, aes(ymax = ymax, ymin = ymin, xmax = 3, xmin = 2.5, fill = Topic)) 
   ) +
   labs(title = "Favorite Topics for K-5")
 
-# Save the plot
+# Save the plot (looks bad here, but looks good in output)
 ggsave("../outputs/favorite_topics_k5.png", width = 8, height = 6, dpi = 300)
 
 
@@ -774,59 +774,6 @@ attendance_table
 
 ```
 
-```{r}
-
-library(tidyverse)
-library(lubridate)
-
-attendance <- read_csv("../data/attendance_full.csv", show_col_types = FALSE)
-
-# --------------------------------------------------
-# 1. Wide → long (select date cols explicitly by pattern)
-# --------------------------------------------------
-attendance_long <- attendance %>%
-  select(Grade, Student, matches("^\\d+/\\d+$")) %>%  # keep only m/d cols
-  pivot_longer(
-    cols      = -c(Grade, Student),
-    names_to  = "Date",
-    values_to = "Present"
-  ) %>%
-  mutate(
-    Date = mdy(paste0(Date, "/2023")),
-    Week = floor_date(Date, "week"),
-    Day  = if_else(wday(Date) < 4, "Day 1", "Day 2")
-  )
-
-# --------------------------------------------------
-# 2. Grade grouping
-# --------------------------------------------------
-attendance_long <- attendance_long %>%
-  mutate(
-    Grade_Group = case_when(
-      Grade %in% c("Kindergarten", "1st", "2nd") ~ "K-2",
-      Grade %in% c("3rd", "4th", "5th")          ~ "3-5",
-      TRUE                                         ~ "Other"
-    )
-  )
-
-# --------------------------------------------------
-# 3. Summary table
-# --------------------------------------------------
-attendance_summary_table <- attendance_long %>%
-  group_by(Week, Day, Grade_Group) %>%
-  summarize(
-    Students_Present = sum(Present, na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  pivot_wider(
-    names_from  = Grade_Group,
-    values_from = Students_Present
-  ) %>%
-  arrange(Week, Day)
-
-print(attendance_summary_table)
-
-```
 
 ```{r}
 
@@ -851,266 +798,6 @@ plot(tukey_results, las = 1)
 
 ```
 
-```{r}
-
-
-# Read in the attendance dataset
-attendance_full <- read_csv("../data/attendance_full.csv", show_col_types = FALSE)
-
-# Convert wide format to long format (pivot attendance data)
-attendance_long <- attendance_full %>%
-  pivot_longer(cols = -c(Grade, Student), names_to = "Date", values_to = "Attended")
-
-# Convert TRUE/FALSE attendance values to numeric (1 = attended, 0 = absent)
-attendance_long <- attendance_long %>%
-  mutate(
-    Attended = as.numeric(Attended), 
-    Date = as.Date(Date, format = "%m/%d")  # Convert to Date format
-  )
-
-# Ensure that Date conversion worked
-print(unique(attendance_long$Date))  # Check the unique dates
-
-# If Date is not in the correct format, try:
-attendance_long <- attendance_long %>%
-  mutate(Date = as.Date(Date, format = "%m/%d", origin = "2023-01-01"))
-
-# Calculate cumulative attendance decline over time
-attendance_summary <- attendance_long %>%
-  group_by(Date) %>%
-  summarize(
-    Attendance_Rate = mean(Attended, na.rm = TRUE) * 100  # Convert proportion to percentage
-  ) %>%
-  arrange(Date) %>%  # Ensure correct chronological order
-  mutate(
-    Attendance_Change = c(NA, diff(Attendance_Rate)),  # Compute rate of attendance change
-    Cumulative_Decline = 100 - Attendance_Rate  # Track cumulative decline
-  )
-
-
-# Plot attendance trends over time (Original trend)
-p1 <- ggplot(attendance_summary, aes(x = Date, y = Attendance_Rate)) +
-  geom_line() +
-  geom_point() +
-  labs(
-    title = "Attendance Trends Over Time",
-    x = "Date",
-    y = "Attendance Rate (%)"
-  ) 
-
-p1
-
-# Plot rate of change of attendance (How quickly students are leaving)
-p2 <- ggplot(attendance_summary, aes(x = Date, y = Attendance_Change)) +
-  geom_line() +
-  geom_point() +
-  geom_hline(yintercept = 0, linetype = "dashed") +  # Reference line for no change
-  labs(
-    title = "Rate of Change in Attendance Over Time",
-    x = "Date",
-    y = "Change in Attendance Rate (%)"
-  ) 
-
-p2
-
-# Save the plots
-ggsave("../outputs/attendance_trends_over_time.png", plot = p1, width = 7.5, height = 5, dpi = 300)
-ggsave("../outputs/attendance_rate_of_change.png", plot = p2, width = 7.5, height = 5, dpi = 300)
 
 
 
-```
-
-```{r}
-
-# Calculate overall attendance rate
-overall_attendance_rate <- attendance_long %>%
-  summarize(Overall_Attendance_Rate = mean(Attended, na.rm = TRUE) * 100) %>%
-  pull(Overall_Attendance_Rate)
-
-# Print the overall attendance rate
-print(paste("Overall Attendance Rate:", round(overall_attendance_rate, 2), "%"))
-
-
-```
-
-```{r}
-
-# Box and Whisker Plot (Jittered)
-
-# Load the dataset
-data <- read_csv("../data/pre_post_test_scores_spring_2023_fall_2023.csv", show_col_types = FALSE)
-
-# Rename columns for clarity
-data <- data %>%
-  rename(
-    Semester = `Semester`,
-    Test_Type = `Test Type`,
-    STEM_Topic = `STEM Topic`,
-    Class = `Class`,
-    Total_Students = `Total Students`,
-    Correct = `# correct`,
-    Percent = `%`
-  )
-
-# Convert N/A to NA
-data[data == "N/A"] <- NA
-
-# Convert necessary columns to numeric
-data <- data %>%
-  mutate(
-    Total_Students = as.numeric(Total_Students),
-    Correct = as.numeric(Correct),
-    Percent = as.numeric(Percent)
-  )
-
-
-
-# Separate pre and post-tests
-pre_tests <- data %>% dplyr::filter(Test_Type == "Pre-Test")
-post_tests <- data %>% dplyr::filter(Test_Type == "Post-Test")
-
-# Join pre and post-tests
-improvement_data <- pre_tests %>%
-  rename(Pre_Total_Students = Total_Students, Pre_Correct = Correct, Pre_Percent = Percent) %>%
-  left_join(post_tests %>%
-              rename(Post_Total_Students = Total_Students, Post_Correct = Correct, Post_Percent = Percent),
-            by = c("Semester", "STEM_Topic", "Class"))
-
-# Calculate improvement and remove NA values
-improvement_data <- improvement_data %>%
-  mutate(Improvement = as.numeric(Post_Percent) - as.numeric(Pre_Percent)) %>%
-  select(Semester, Class, Improvement) %>%
-  drop_na()
-
-# Convert Semester into an ordered factor to control display order
-improvement_data$Semester <- factor(improvement_data$Semester, levels = c("Spring 2023", "Fall 2023"))
-
-# Plot the overall improvement, faceted by Class (K-2 and 3-5)
-ggplot(improvement_data, aes(x = Semester, y = Improvement, fill = Semester)) +
-  geom_boxplot(outlier.shape = NA) +
-  geom_jitter(alpha = 0.3, width = 0.2) +
-  facet_wrap(~ Class) +
-  labs(
-    title = "Overall Improvement from Pre to Post Test by Semester and Class",
-    x = "Semester",
-    y = "Improvement (%)"
-  ) +
-  theme(legend.position = "none")
-
-# Save the plot
-ggsave("../outputs/faceted_pre_post_test_improvement.png", width = 7.29, height = 4.5, dpi = 300)
-
-
-```
-
-```{r}
-
-library(tidyverse)
-library(lubridate)
-library(gt)
-
-# Load and rename columns
-data_raw <- read_csv("../data/Combined_Speaker_Surveys.csv", show_col_types = FALSE)
-
-colnames(data_raw) <- c(
-  "Timestamp", "Name", "Subject", "Speaker_Before", "Overall_Rating",
-  "Inspire_Info", "Hands_On_Activities", "Background_Knowledge",
-  "Engagement_Enjoyment", "Staff_Helpfulness", "Went_Well", "Went_Not_Well",
-  "Speaker_Quote", "Future_Suggestions", "Email"
-)
-
-# Clean and tag by time period
-data <- data_raw %>%
-  mutate(
-    Timestamp = parse_date_time(Timestamp, orders = c("mdy HMS", "ymd HMS", "mdy HM", "ymd HM", "Ymd HMS", "Ymd HM", "Ymd IMp")),
-    Period = if_else(Timestamp < ymd("2023-08-01"), "Before", "After"),
-    Background_Knowledge = as.numeric(Background_Knowledge) * 2,
-    Engagement_Enjoyment = Engagement_Enjoyment * 2,
-    Staff_Helpfulness = Staff_Helpfulness * 2
-  )
-
-# Summarize responses
-summary_table <- data %>%
-  select(Period, Overall_Rating, Background_Knowledge, Engagement_Enjoyment, Staff_Helpfulness) %>%
-  pivot_longer(-Period, names_to = "Question", values_to = "Response") %>%
-  group_by(Period, Question) %>%
-  summarize(
-    Mean = round(mean(Response, na.rm = TRUE), 2),
-    SD = round(sd(Response, na.rm = TRUE), 2),
-    n = sum(!is.na(Response)),
-    .groups = "drop"
-  )
-
-# Pivot wider for final output
-summary_table_wide <- summary_table %>%
-  pivot_wider(names_from = Period, values_from = c(Mean, SD, n))
-
-# Display as gt table
-summary_table_wide %>%
-  gt() %>%
-  tab_header(
-    title = "Lesson Ratings by Period",
-    subtitle = "Comparison Before and After Fall 2023"
-  ) %>%
-  fmt_number(columns = where(is.numeric), decimals = 2) %>%
-  tab_footnote(
-    footnote = "All values scaled to a max of 10. Includes only numeric feedback questions.",
-    locations = cells_column_labels(columns = everything())
-  )
-
-
-summary_table_wide
-
-# Drop NAs before running t-test
-before <- na.omit(data$Background_Knowledge[data$Period == "Before"])
-after <- na.omit(data$Background_Knowledge[data$Period == "After"])
-
-# Run t-test
-t_test_result <- t.test(before, after, paired = FALSE, var.equal = TRUE)
-print(t_test_result)
-
-# Make sure 'Period' is a factor with correct order
-data$Period <- factor(data$Period, levels = c("Before", "After"))
-
-# Boxplot
-ggplot(data, aes(x = Period, y = Background_Knowledge, fill = Period)) +
-  geom_boxplot(outlier.shape = NA) +
-  geom_jitter(width = 0.2, alpha = 0.3) +
-  labs(
-    title = "Background Knowledge Ratings Before vs. After Fall 2023",
-    x = "Period",
-    y = "Rating (Scaled 1–10)"
-  ) +
-  theme_minimal() +
-  theme(legend.position = "none") +
-  ylim(0, 10)
-
-
-# Save the plot
-ggsave("../outputs/background_knowledge_comparison.png", width = 7, height = 4.5, dpi = 300)
-
-
-
-
-
-```
-
-```{r}
-
-# Subset and drop NA values
-before <- data %>%
-  dplyr::filter(Period == "Before") %>%
-  pull(Background_Knowledge) %>%
-  na.omit()
-
-after <- data %>%
-  dplyr::filter(Period == "After") %>%
-  pull(Background_Knowledge) %>%
-  na.omit()
-
-# Check sample sizes first
-cat("n Before:", length(before), "\n")
-cat("n After:", length(after), "\n")
-
-```
