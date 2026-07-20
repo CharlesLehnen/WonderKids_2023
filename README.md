@@ -45,12 +45,16 @@ Please cite the article using the following:
 If you would like to cite this GitHub repository directly as well, you can use the following:
 
 ```{bibtex}
-@software{lehnen2023wonderkids,
-  author = {Lehnen, Charles},
-  title  = {WonderKids\_2023},
-  year   = {2023},
-  url    = {https://github.com/CharlesLehnen/WonderKids_2023},
-  note   = {GitHub repository}
+@software{lehnen2026wonderkids,
+  author  = {Lehnen, Charles},
+  title   = {{CharlesLehnen/WonderKids\_2023: Code for "Zooming into STEM: 
+             Designing Curriculum Around Guest Presentations in an Online 
+             After-School STEM Program for Title I Elementary Students"}},
+  year    = {2026},
+  version = {v1.0.0},
+  doi     = {10.5281/zenodo.21448934},
+  url     = {https://doi.org/10.5281/zenodo.21448934},
+  note    = {Computer software, Zenodo}
 }
 ```
 
